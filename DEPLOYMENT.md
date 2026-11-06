@@ -32,6 +32,7 @@ The admin page (`/admin`) now uses **email-only magic-link login**:
 3. Link verification creates an HttpOnly signed session cookie.
 
 Global admins come from `SAM_MINIGAMES_ADMIN_EMAILS`; group admins added in the UI can also log in by email-only and are scoped to their group permissions.
+When a global admin adds a group admin, the API now sends that group admin the same one-time login email automatically.
 
 For troubleshooting, use:
 

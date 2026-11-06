@@ -229,6 +229,18 @@ async function sendAdminMagicLink(email, token, env, origin) {
   return null;
 }
 
+async function issueAdminMagicLink(email, env, db, origin) {
+  const now = Date.now();
+  const token = randomHex(24);
+  const tokenHash = await sha256("sam-admin-login:" + token);
+  await db.batch([
+    db.prepare("DELETE FROM sam_mg_admin_login_tokens WHERE expires_at < ? OR used_at IS NOT NULL").bind(now),
+    db.prepare("INSERT INTO sam_mg_admin_login_tokens (id, email, token_hash, created_at, expires_at, used_at) VALUES (?, ?, ?, ?, ?, NULL)")
+      .bind(randomHex(12), email, tokenHash, now, now + ADMIN_LOGIN_TTL_MS),
+  ]);
+  return await sendAdminMagicLink(email, token, env, origin);
+}
+
 function canManageGroup(actor, groupId) {
   return !!(actor && (actor.globalAdmin || actor.groupIds.has(groupId)));
 }
@@ -572,11 +584,15 @@ async function setGroupAdmin(request, env, db, remove = false) {
   if (!email || !email.includes("@")) return fail(400, "Invalid email.");
   if (remove) {
     await db.prepare("DELETE FROM sam_mg_group_admins WHERE group_id = ? AND email = ?").bind(groupId, email).run();
-  } else {
-    await db.prepare("INSERT OR IGNORE INTO sam_mg_group_admins (group_id, email, created_at) VALUES (?, ?, ?)")
-      .bind(groupId, email, Date.now()).run();
+    return json({ ok: true, invitationSent: false });
   }
-  return json({ ok: true });
+  await db.prepare("INSERT OR IGNORE INTO sam_mg_group_admins (group_id, email, created_at) VALUES (?, ?, ?)")
+    .bind(groupId, email, Date.now()).run();
+  const sendError = await issueAdminMagicLink(email, env, db, new URL(request.url).origin);
+  if (sendError) {
+    return fail(502, "Group admin was added, but sending login email failed. Check RESEND_API_KEY and SAM_MINIGAMES_EMAIL_FROM.");
+  }
+  return json({ ok: true, invitationSent: true });
 }
 
 async function setGroupGames(request, env, db) {
@@ -664,15 +680,7 @@ async function requestAdminLogin(request, env, db) {
   if (!email) return fail(400, "Enter a valid email.");
   const authorized = await canEmailAdmin(email, env, db);
   if (!authorized) return json({ ok: true });
-  const now = Date.now();
-  const token = randomHex(24);
-  const tokenHash = await sha256("sam-admin-login:" + token);
-  await db.batch([
-    db.prepare("DELETE FROM sam_mg_admin_login_tokens WHERE expires_at < ? OR used_at IS NOT NULL").bind(now),
-    db.prepare("INSERT INTO sam_mg_admin_login_tokens (id, email, token_hash, created_at, expires_at, used_at) VALUES (?, ?, ?, ?, ?, NULL)")
-      .bind(randomHex(12), email, tokenHash, now, now + ADMIN_LOGIN_TTL_MS),
-  ]);
-  const sendError = await sendAdminMagicLink(email, token, env, new URL(request.url).origin);
+  const sendError = await issueAdminMagicLink(email, env, db, new URL(request.url).origin);
   if (sendError) return sendError;
   return json({ ok: true });
 }
