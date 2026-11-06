@@ -79,6 +79,33 @@ function getSessionSecret(env) {
   return String(env?.SAM_MINIGAMES_SESSION_SECRET || env?.SAM_MINIGAMES_ADMIN_KEY || "").trim();
 }
 
+export function getAdminAuthDebug(env) {
+  const configuredRaw = String(
+    (env && (env.SAM_MINIGAMES_ADMIN_EMAILS || env.ADMIN_EMAILS)) || "",
+  );
+  const configuredAdmins = configuredRaw
+    .split(",")
+    .map((v) => normalizeEmail(v))
+    .filter(Boolean);
+  const adminKey = String(env?.SAM_MINIGAMES_ADMIN_KEY || "").trim();
+  const sessionSecret = String(env?.SAM_MINIGAMES_SESSION_SECRET || "").trim();
+  const checks = {
+    adminEmailsConfigured: configuredAdmins.length > 0,
+    usingDefaultAdminFallback: configuredAdmins.length === 0,
+    adminKeyConfigured: adminKey.length > 0,
+    adminKeyStrongEnough: adminKey.length >= ADMIN_KEY_MIN_LEN,
+    sessionSecretConfigured: sessionSecret.length > 0,
+    sessionSecretUsingAdminKey: sessionSecret.length > 0 && adminKey.length > 0 && safeEqual(sessionSecret, adminKey),
+  };
+  const issues = [];
+  if (!checks.adminEmailsConfigured) issues.push("SAM_MINIGAMES_ADMIN_EMAILS is empty; default fallback list is active.");
+  if (!checks.adminKeyConfigured) issues.push("SAM_MINIGAMES_ADMIN_KEY is missing.");
+  if (checks.adminKeyConfigured && !checks.adminKeyStrongEnough) issues.push(`SAM_MINIGAMES_ADMIN_KEY is too short (minimum ${ADMIN_KEY_MIN_LEN} characters).`);
+  if (!checks.sessionSecretConfigured) issues.push("SAM_MINIGAMES_SESSION_SECRET is missing.");
+  if (checks.sessionSecretUsingAdminKey) issues.push("SAM_MINIGAMES_SESSION_SECRET should be different from SAM_MINIGAMES_ADMIN_KEY.");
+  return { ok: issues.length === 0, checks, issues };
+}
+
 function extractBearerToken(authHeader) {
   const raw = String(authHeader || "");
   const m = raw.match(/^Bearer\s+(.+)$/i);

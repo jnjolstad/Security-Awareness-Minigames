@@ -26,6 +26,12 @@ Configure Pages Function environment variables:
 
 The admin page (`/admin`) now uses admin email + API key login to create an HttpOnly signed session cookie; browser-set identity cookies are not used for admin authentication.
 
+For troubleshooting, use:
+
+- `GET /security-awareness-month/minigames-api/auth/debug`
+
+This endpoint is safe to share in logs because it returns only booleans/flags (never secret values), including whether required env vars are missing or too short.
+
 ## Quick setup path (Cloudflare + GitHub)
 
 1. Cloudflare Pages -> your project -> **Settings -> Builds & deployments -> Source**.

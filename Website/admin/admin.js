@@ -46,6 +46,27 @@
     }
   }
 
+  async function debugAuth() {
+    const el = $("debugStatus");
+    try {
+      const data = await call("/auth/debug");
+      const details = [];
+      if (!data.ok) details.push("Auth config has issues.");
+      if (Array.isArray(data.issues) && data.issues.length) details.push(...data.issues);
+      details.push(`adminEmailsConfigured=${data.checks && data.checks.adminEmailsConfigured ? "yes" : "no"}`);
+      details.push(`adminKeyConfigured=${data.checks && data.checks.adminKeyConfigured ? "yes" : "no"}`);
+      details.push(`adminKeyStrongEnough=${data.checks && data.checks.adminKeyStrongEnough ? "yes" : "no"}`);
+      details.push(`sessionSecretConfigured=${data.checks && data.checks.sessionSecretConfigured ? "yes" : "no"}`);
+      details.push(`sessionSecretUsingAdminKey=${data.checks && data.checks.sessionSecretUsingAdminKey ? "yes" : "no"}`);
+      details.push(`currentSessionEmail=${data.currentSessionEmail || "-"}`);
+      el.className = data.ok ? "ok" : "warn";
+      el.textContent = details.join(" ");
+    } catch (err) {
+      el.className = "warn";
+      el.textContent = `Debug failed: ${err.message}`;
+    }
+  }
+
   function selectedGroup() {
     return groups.find((g) => g.id === $("groupSelect").value) || null;
   }
@@ -137,6 +158,7 @@
     $("authStatus").textContent = "Logged out.";
   });
   wireButton("testCreds", testAccess);
+  wireButton("debugAuth", debugAuth);
   wireButton("reloadGroups", loadGroups);
   wireButton("createGroup", createGroup);
   wireButton("saveGames", saveGames);

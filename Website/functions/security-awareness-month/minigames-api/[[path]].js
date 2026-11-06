@@ -9,7 +9,7 @@
 // Storage is D1 (AUKSJON_DB binding, tables prefixed sam_mg_), which keeps
 // the free tier's 1,000 KV writes/day for the escape room.
 
-import { buildAdminSessionCookie, buildAdminSessionToken, clearAdminSessionCookie, getTrustedAdminEmail, isAdminEmail, verifyAdminLogin } from "../../_auth.js";
+import { buildAdminSessionCookie, buildAdminSessionToken, clearAdminSessionCookie, getAdminAuthDebug, getTrustedAdminEmail, isAdminEmail, verifyAdminLogin } from "../../_auth.js";
 import { GAMES } from "../_minigames-key.js";
 
 const POINTS = { wrong: 25, hint: 100, missed: 100 };
@@ -617,6 +617,15 @@ async function logoutAdmin() {
   });
 }
 
+async function debugAdminAuth(request, env) {
+  const data = getAdminAuthDebug(env);
+  const actor = await getTrustedAdminEmail(request, env);
+  return json({
+    ...data,
+    currentSessionEmail: actor || null,
+  });
+}
+
 export async function onRequest(context) {
   const { request, env, params } = context;
   const db = env.AUKSJON_DB
@@ -632,6 +641,7 @@ export async function onRequest(context) {
     if (route === "/board" && method === "GET") return await getBoard(url, db);
     if (route === "/auth/login" && method === "POST") return await loginAdmin(request, env);
     if (route === "/auth/logout" && method === "POST") return await logoutAdmin();
+    if (route === "/auth/debug" && method === "GET") return await debugAdminAuth(request, env);
     if (route === "/group" && method === "GET") return await getGroupConfig(url, db);
     if (route === "/group/join" && method === "POST") return await joinGroup(request, db);
     if (route === "/player" && method === "POST") return await createPlayer(request, db);

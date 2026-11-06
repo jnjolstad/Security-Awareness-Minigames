@@ -21,7 +21,7 @@
     .warn { color: #ffd191; }
   </style>
   <script src="/security-awareness-month/minigames/catalog.js" defer></script>
-  <script src="admin.js?v=20261106-1" defer></script>
+  <script src="admin.js?v=20261106-2" defer></script>
 </head>
 <body>
   <main>
@@ -36,8 +36,10 @@
         <button class="primary" id="saveCreds">Log in</button>
         <button id="clearCreds">Log out</button>
         <button id="testCreds">Test access</button>
+        <button id="debugAuth">Debug auth config</button>
       </div>
       <p id="authStatus" class="muted">Not tested.</p>
+      <p id="debugStatus" class="muted"></p>
     </section>
 
     <section class="card">
