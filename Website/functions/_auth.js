@@ -121,7 +121,10 @@ export async function getTrustedAdminEmail(request, env) {
   const sig = parts[1];
   const expectedSig = await hmacSha256(secret, payload);
   if (!safeEqual(sig, expectedSig)) return "";
-  const [email, expRaw] = payload.split(".");
+  const splitAt = payload.lastIndexOf(".");
+  if (splitAt <= 0 || splitAt >= payload.length - 1) return "";
+  const email = payload.slice(0, splitAt);
+  const expRaw = payload.slice(splitAt + 1);
   const clean = normalizeEmail(email);
   const exp = Number(expRaw || 0);
   if (!clean || !Number.isFinite(exp) || exp < Math.floor(Date.now() / 1000)) return "";
