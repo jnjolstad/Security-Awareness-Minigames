@@ -25,7 +25,7 @@ Do not introduce compulsory employee SSO, different scoring or new game content 
 
 ## 3. Inventory and source extraction
 
-Use a recorded production commit from `jnjolstad/njolstad-apps` as the starting point. Reconcile newer local assets first: the local `Website` folder is not necessarily the complete/latest backend.
+Use the current `jnjolstad/SecurityAwarenessMonth` repository as the source of truth. Reconcile any older local export folders before migration so `Website` and `functions` stay aligned.
 
 | Include | Purpose |
 |---|---|

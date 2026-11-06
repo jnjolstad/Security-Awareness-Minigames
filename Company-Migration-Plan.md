@@ -16,7 +16,7 @@
 | Database | Cloudflare KV (`HOTWHEELS_KV`), shared with other private apps | Keys `escape-room-*` |
 | Admin login | Private user database plus session cookie, admin by e-mail list | `functions/_auth.js`, `functions/_middleware.js` |
 | E-mail | Resend API, sending from noreply@njolstad.no | `api/register.js`, `api/admin-registrations.js` |
-| Source code | Private GitHub repository `jnjolstad/njolstad-apps`, mixed in with other private apps | Monorepo |
+| Source code | Dedicated GitHub repository `jnjolstad/SecurityAwarenessMonth` | Standalone repo |
 | Physical room | Laptop(s) running the terminal, props, printouts, 3D-printed figures, host guides | `Phase-1` … `Phase-5` folders |
 | Promotion | Intranet post (EN/NO), poster, QR code, PowerPoint slide | `Promotion/` |
 
