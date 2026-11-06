@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verify &middot; NIMBUS Secure Terminal</title>
+<link rel="stylesheet" href="assets/css/nimbus.css">
+</head>
+<body>
+<div class="center">
+  <form class="panel auth" id="form" autocomplete="off">
+    <div class="logo-xl"></div>
+    <h1>Multi-Factor Authentication</h1>
+    <div class="sub">SOMETHING YOU KNOW + SOMETHING YOU HAVE</div>
+    <p class="note" style="margin-bottom:6px">Passphrase accepted for <span class="mono" id="username"></span>.
+       Enter the 6-digit code from your <b>NIMBUS Authenticator</b> token.</p>
+
+    <label for="code">Authenticator code</label>
+    <input class="input" id="code" inputmode="numeric" maxlength="6" placeholder="6 digits" autofocus
+           style="text-align:center;font-size:24px;letter-spacing:8px">
+
+    <button class="btn" type="submit" style="width:100%">Verify</button>
+    <div class="msg" id="m"></div>
+    <p class="note" style="margin-top:16px">Trouble verifying? Ask your facilitator.</p>
+  </form>
+</div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/state.js"></script>
+<script>
+  NST.require("login");            // must have passed the passphrase first
+  document.getElementById("username").textContent = NIMBUS_CONFIG.username;
+  document.getElementById("form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var c = NST.norm(document.getElementById("code").value);
+    if (c === NST.norm(NIMBUS_CONFIG.mfaCode)) {
+      NST.mark("mfa");
+      NST.show("m", "good", "Identity verified. Unlocking desktop&hellip;");
+      setTimeout(function () { location.href = "desktop.html"; }, 700);
+    } else {
+      NST.show("m", "err", "Incorrect or expired code. Check your authenticator token.");
+    }
+  });
+</script>
+</body>
+</html>

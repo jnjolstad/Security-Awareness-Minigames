@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BREACH PROTOCOL — Print &amp; Placement Guide</title>
+<style>
+  :root {
+    --navy:#0b1924; --blue:#087da5; --cyan:#20b9d7; --ink:#172630;
+    --muted:#5c6d78; --line:#cdd9df; --soft:#eef6f9; --red:#bf3042;
+    --amber:#a66d08; --green:#247a55; --paper:#fff;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; color:var(--ink); font-family:"Segoe UI",Arial,sans-serif; background:#303b45; }
+  .page {
+    position:relative; width:210mm; min-height:297mm; margin:18px auto; padding:14mm 14mm 15mm;
+    background:var(--paper); box-shadow:0 12px 38px rgba(0,0,0,.38); page-break-after:always; overflow:hidden;
+  }
+  .page:last-child { page-break-after:auto; }
+  header { display:flex; justify-content:space-between; align-items:center; gap:12px;
+    padding-bottom:9px; margin-bottom:12px; border-bottom:3px solid var(--blue); }
+  .brand { display:flex; align-items:center; gap:10px; }
+  .logo { width:34px; height:34px; display:grid; place-items:center; border-radius:9px;
+    background:linear-gradient(135deg,var(--cyan),var(--blue)); color:#fff; font-size:19px; }
+  .brand strong { display:block; color:var(--navy); font-size:17px; }
+  .brand small,.meta { color:var(--muted); font-size:9px; letter-spacing:.11em; text-transform:uppercase; }
+  .meta { text-align:right; line-height:1.5; }
+  h1 { margin:0 0 5px; color:var(--navy); font-size:27px; line-height:1.05; letter-spacing:-.03em; }
+  h2 { margin:14px 0 7px; color:var(--blue); font-size:16px; text-transform:uppercase; letter-spacing:.06em; }
+  h3 { margin:8px 0 4px; color:var(--navy); font-size:13px; }
+  p { margin:5px 0; font-size:10.5px; line-height:1.42; }
+  ul,ol { margin:5px 0 7px; padding-left:18px; }
+  li { margin:3px 0; font-size:10px; line-height:1.35; }
+  table { width:100%; border-collapse:collapse; font-size:8.7px; }
+  th,td { padding:4px 5px; border:1px solid var(--line); text-align:left; vertical-align:top; line-height:1.25; }
+  th { background:var(--blue); color:#fff; font-size:8px; letter-spacing:.04em; text-transform:uppercase; }
+  tbody tr:nth-child(even) { background:#f5f9fb; }
+  code,.mono { font-family:Consolas,"Courier New",monospace; font-weight:700; }
+  .warning { padding:8px 10px; margin:8px 0; border-left:4px solid var(--red); background:#fff0f2;
+    color:#7f1f2c; font-size:10px; font-weight:700; }
+  .callout { padding:8px 10px; margin:8px 0; border-left:4px solid var(--cyan); background:var(--soft);
+    font-size:10px; line-height:1.4; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .card { padding:9px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+  .card h3 { margin-top:0; }
+  .check { font-size:15px; color:var(--blue); font-weight:700; text-align:center; }
+  .req { color:var(--green); font-weight:800; }
+  .opt { color:var(--amber); font-weight:800; }
+  .host { color:var(--red); font-weight:800; }
+  .zone { padding:9px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+  .zone h3 { margin:0 0 5px; padding-bottom:5px; border-bottom:2px solid var(--cyan); }
+  .zone ul { list-style:none; padding:0; }
+  .zone li { padding:4px 0; border-bottom:1px dotted var(--line); }
+  .zone li:last-child { border:0; }
+  .steps { counter-reset:step; list-style:none; padding:0; }
+  .steps li { position:relative; min-height:29px; padding:5px 0 5px 35px; border-bottom:1px solid var(--line); }
+  .steps li::before { counter-increment:step; content:counter(step); position:absolute; left:0; top:4px;
+    width:25px; height:25px; display:grid; place-items:center; border-radius:50%; background:var(--blue); color:#fff; font-weight:800; }
+  .foot { position:absolute; left:14mm; right:14mm; bottom:7mm; display:flex; justify-content:space-between;
+    padding-top:5px; border-top:1px solid var(--line); color:var(--muted); font-size:8px; }
+  .screenbar { position:sticky; top:0; z-index:10; display:flex; justify-content:space-between; align-items:center;
+    width:210mm; margin:0 auto 10px; padding:10px 14px; background:#101820; color:#fff; border-radius:0 0 9px 9px; }
+  .screenbar span { font-size:12px; color:#aabac5; }
+  .screenbar button { padding:8px 14px; border:0; border-radius:7px; background:var(--cyan);
+    color:#06232b; font-weight:800; cursor:pointer; }
+  @page { size:A4; margin:0; }
+  @media print {
+    html,body { background:#fff; }
+    .screenbar { display:none; }
+    .page { margin:0; box-shadow:none; }
+  }
+  @media screen and (max-width:850px) {
+    .screenbar,.page { width:100%; }
+    .page { min-height:auto; margin:0 0 12px; padding:24px 18px 50px; }
+    .grid2 { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="screenbar">
+  <span>Fresh-room print list · 20 pages total</span>
+  <button onclick="window.print()">Print Checklist</button>
+</div>
+
+<section class="page">
+  <header>
+    <div class="brand"><span class="logo">☁</span><div><strong>BREACH PROTOCOL</strong><small>Print &amp; placement guide</small></div></div>
+    <div class="meta">Page 1 of 3<br>Complete print list</div>
+  </header>
+  <h1>Print Everything</h1>
+  <p>This assumes nothing has been printed before. Print the complete pack once, then use the preparation and placement pages that follow.</p>
+  <div class="callout"><b>Printer settings:</b> A4 · scale 100% / actual size · margins none/default · background graphics ON · colour recommended. The visitor log is landscape; all other pages are portrait.</div>
+  <table>
+    <thead><tr><th>✓</th><th>#</th><th>Printable</th><th>Pages</th><th>Stock</th><th>Prepare</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="check">☐</td><td>01</td><td><b>Visitor Policy poster</b></td><td>1</td><td>Plain A4</td><td>No cutting</td><td class="req">Required</td></tr>
+      <tr><td class="check">☐</td><td>02</td><td><b>Visitor Sign-In Log</b></td><td>1 landscape</td><td>Plain A4</td><td>Place on clipboard</td><td class="req">Required</td></tr>
+      <tr><td class="check">☐</td><td>18</td><td><b>Alex’s Notes #1 and #2</b></td><td>1</td><td>Plain A4</td><td>Cut into 2 notes</td><td class="req">Required</td></tr>
+      <tr><td class="check">☐</td><td>03</td><td><b>Passphrase Policy poster</b></td><td>1</td><td>Plain A4</td><td>No cutting</td><td class="req">Required</td></tr>
+      <tr><td class="check">☐</td><td>04</td><td><b>Desk props</b></td><td>1</td><td>Cardstock</td><td>Cut sticky, labels, nameplate, USB label</td><td class="req">Required</td></tr>
+      <tr><td class="check">☐</td><td>05</td><td><b>Authenticator + recovery envelope</b></td><td>1</td><td>Cardstock</td><td>Cut token/slip; fold and seal envelope</td><td class="req">Required</td></tr>
+      <tr><td class="check">☐</td><td>06</td><td><b>Spot-the-Phish poster</b></td><td>1</td><td>Plain A4</td><td>No cutting</td><td class="req">Required</td></tr>
+      <tr><td class="check">☐</td><td>07</td><td><b>Recovered phishing email</b></td><td>1</td><td>Plain A4</td><td>Optional desk/binder prop</td><td class="opt">Optional</td></tr>
+      <tr><td class="check">☐</td><td>08</td><td><b>Network Map poster</b></td><td>1</td><td>Plain A4</td><td>No cutting</td><td class="req">Required</td></tr>
+      <tr><td class="check">☐</td><td>09</td><td><b>Wi-Fi Site Survey</b></td><td>1</td><td>Plain A4</td><td>No cutting</td><td class="req">Required</td></tr>
+      <tr><td class="check">☐</td><td>10</td><td><b>Access Control Audit</b></td><td>1</td><td>Plain A4</td><td>Evidence binder</td><td class="req">Required</td></tr>
+      <tr><td class="check">☐</td><td>11</td><td><b>Contractor / HR register</b></td><td>1</td><td>Plain A4</td><td>Evidence binder</td><td class="req">Required</td></tr>
+      <tr><td class="check">☐</td><td>12</td><td><b>Data Classification poster</b></td><td>1</td><td>Plain A4</td><td>No cutting</td><td class="req">Required</td></tr>
+      <tr><td class="check">☐</td><td>15</td><td><b>Classification folder labels</b></td><td>1</td><td>Cardstock</td><td>Cut 3 labels; attach to folders</td><td class="req">Required</td></tr>
+      <tr><td class="check">☐</td><td>13</td><td><b>Cloud Exfiltration Alert</b></td><td>1</td><td>Plain A4</td><td>Keep at host station</td><td class="host">Host-gated</td></tr>
+      <tr><td class="check">☐</td><td>14</td><td><b>Riley termination notice + sticky</b></td><td>1</td><td>Plain A4</td><td>Cut sticky from notice</td><td class="req">Required</td></tr>
+      <tr><td class="check">☐</td><td>16</td><td><b>Six suspect ID badges</b></td><td>1</td><td>Cardstock</td><td>Cut 6 cards</td><td class="req">Required</td></tr>
+      <tr><td class="check">☐</td><td>17</td><td><b>Parking-lot USB photo</b></td><td>1</td><td>Plain A4</td><td>Atmosphere / optional clue</td><td class="opt">Optional</td></tr>
+      <tr><td class="check">☐</td><td>19</td><td><b>Door sign + awareness poster</b></td><td>2</td><td>Plain A4</td><td>No cutting</td><td class="req">Required</td></tr>
+    </tbody>
+  </table>
+  <div class="warning"><b>Total:</b> 20 printed pages. Use roughly 5 sheets of cardstock (desk props, MFA props, folder labels, suspect badges) and 15 sheets of plain A4.</div>
+  <div class="foot"><span>Print once for one complete room</span><span>PRINT GUIDE · 1</span></div>
+</section>
+
+<section class="page">
+  <header>
+    <div class="brand"><span class="logo">☁</span><div><strong>BREACH PROTOCOL</strong><small>Preparation and placement</small></div></div>
+    <div class="meta">Page 2 of 3<br>Room zones</div>
+  </header>
+  <h1>Where Everything Goes</h1>
+  <div class="grid2">
+    <div class="zone">
+      <h3>Entrance / outside room</h3>
+      <ul>
+        <li><b>19 Door sign</b> — on or beside the entrance door</li>
+        <li><b>19 Awareness poster</b> — corridor or inside entrance</li>
+      </ul>
+    </div>
+    <div class="zone">
+      <h3>Zone A · Reception</h3>
+      <ul>
+        <li><b>01 Visitor Policy</b> — wall above reception table</li>
+        <li><b>02 Visitor Log</b> — clipboard on table</li>
+        <li><b>18 Alex Note #1</b> — inside lockbox with drawer key</li>
+        <li>Lockbox visible; combination set to <b>2071</b>, dial scrambled</li>
+      </ul>
+    </div>
+    <div class="zone">
+      <h3>Zone B · Alex’s workstation</h3>
+      <ul>
+        <li><b>03 Passphrase Policy</b> — wall beside monitor</li>
+        <li><b>04 Yellow sticky</b> — monitor bezel</li>
+        <li><b>04 Four dot-labels</b> — one on each desk object</li>
+        <li><b>04 A. Mercer nameplate</b> — on desk</li>
+        <li><b>04 PROJECT FROST label</b> — on real USB</li>
+        <li><b>05 Authenticator + recovery envelope</b> — locked drawer</li>
+        <li><b>18 Alex Note #2</b> — locked drawer</li>
+        <li><b>06 Spot-the-Phish</b> — wall beside PC</li>
+        <li><b>07 Phishing email</b> — optional desk/binder prop</li>
+      </ul>
+    </div>
+    <div class="zone">
+      <h3>Zone C · SOC wall</h3>
+      <ul>
+        <li><b>08 Network Map</b> — wall display</li>
+        <li><b>09 Wi-Fi Survey</b> — directly beside Network Map</li>
+        <li><b>17 Parking-lot photo</b> — optional atmosphere</li>
+      </ul>
+    </div>
+    <div class="zone">
+      <h3>Zone D · Evidence shelf</h3>
+      <ul>
+        <li><b>10 Access Audit</b> — evidence binder</li>
+        <li><b>11 Contractor / HR register</b> — same binder</li>
+        <li><b>12 Classification poster</b> — above folders</li>
+        <li><b>15 Folder labels</b> — green, amber, red folders</li>
+        <li><b>14 Riley notice + sticky</b> — shelf / corkboard</li>
+        <li><b>16 Suspect badges</b> — suspect board</li>
+        <li>Real <b>PROJECT FROST USB</b> — taped under shelf</li>
+      </ul>
+    </div>
+    <div class="zone">
+      <h3>Host station · never freely accessible</h3>
+      <ul>
+        <li><b>13 Cloud Exfiltration Alert</b> — hand over only after the terminal confirms EXT-4471</li>
+        <li><b>Host-Guide.html</b> — host’s hand only</li>
+        <li>Spare sealed MFA envelopes and replacement tape</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Cutting and assembly</h2>
+  <table>
+    <thead><tr><th>Sheet</th><th>Action</th><th>Finished pieces</th></tr></thead>
+    <tbody>
+      <tr><td>04 Desk props</td><td>Cut every dashed item; attach labels securely</td><td>1 sticky · 4 dot-labels · 1 nameplate · 1 USB label</td></tr>
+      <tr><td>05 MFA props</td><td>Cut token and slip; place slip in sealed “break glass” envelope</td><td>1 token · 1 recovery slip · 1 envelope front</td></tr>
+      <tr><td>14 Riley</td><td>Separate termination notice and angry sticky</td><td>2 props</td></tr>
+      <tr><td>15 Folder labels</td><td>Cut and attach by colour</td><td>Public · Internal · Confidential</td></tr>
+      <tr><td>16 Suspect badges</td><td>Cut six cards; optional lanyards/holders</td><td>Webb · Tran · Cole · Nair · Baxter · Mercer</td></tr>
+      <tr><td>18 Alex notes</td><td>Cut apart</td><td>Note #1 lockbox · Note #2 drawer</td></tr>
+    </tbody>
+  </table>
+  <div class="foot"><span>Place by zone after cutting</span><span>PRINT GUIDE · 2</span></div>
+</section>
+
+<section class="page">
+  <header>
+    <div class="brand"><span class="logo">☁</span><div><strong>BREACH PROTOCOL</strong><small>Fresh-room setup order</small></div></div>
+    <div class="meta">Page 3 of 3<br>Final checks</div>
+  </header>
+  <h1>Build the Room</h1>
+  <ol class="steps">
+    <li><b>Print the complete pack.</b> Confirm 20 pages and that the visitor log is landscape.</li>
+    <li><b>Cut the handled props.</b> Prepare desk labels, MFA pieces, Riley props, folder labels, badges, and Alex’s notes.</li>
+    <li><b>Prepare the lock chain.</b> Put the desk-drawer key and Alex Note #1 in the lockbox; set combination 2071; close and scramble.</li>
+    <li><b>Prepare the locked drawer.</b> Put the authenticator, sealed recovery envelope, and Alex Note #2 inside; lock it.</li>
+    <li><b>Prepare the desk puzzle.</b> Place four labelled objects, the false sticky password, and A. Mercer nameplate.</li>
+    <li><b>Prepare PROJECT FROST.</b> Label the real USB, load the supplied harmless files, and tape it under the evidence shelf.</li>
+    <li><b>Build the walls.</b> Mount reception, passphrase, phishing, network, classification, and awareness posters.</li>
+    <li><b>Build the evidence area.</b> File the audit/register, label three folders, arrange Riley evidence and six suspect badges.</li>
+    <li><b>Secure the answer-bearing alert.</b> Keep the Cloud Exfiltration Alert at the host station until the correct accusation.</li>
+    <li><b>Start the technology.</b> Terminal at login with 45:00 idle; standalone tablet timer ready if used.</li>
+  </ol>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Materials still required</h3>
+      <ul>
+        <li>4-digit lockbox set to 2071</li>
+        <li>Lockable desk drawer + key</li>
+        <li>Real USB stick</li>
+        <li>Clipboard, pen, 2 binders</li>
+        <li>Green, amber, red folders</li>
+        <li>Four small desk objects</li>
+        <li>Envelope, tape, scissors, mounting putty</li>
+        <li>Optional lanyards / badge holders</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Final player-view check</h3>
+      <ul>
+        <li>No host guide or answer key visible</li>
+        <li>No host instruction bars appear on printed props</li>
+        <li>Cloud alert is not in the room</li>
+        <li>Lockbox and drawer are actually locked</li>
+        <li>All clues can be read in room lighting</li>
+        <li>No real company/customer information is used</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>One-minute solvability check</h2>
+  <table>
+    <thead><tr><th>Check</th><th>Expected</th><th>✓</th></tr></thead>
+    <tbody>
+      <tr><td>Visitor policy + log</td><td>J. Price uniquely breaks all 3 rules; V-2071 is readable</td><td class="check">☐</td></tr>
+      <tr><td>Desk labels</td><td>Red / green / blue / yellow objects all present</td><td class="check">☐</td></tr>
+      <tr><td>MFA</td><td>481509 readable inside locked drawer</td><td class="check">☐</td></tr>
+      <tr><td>Wi-Fi</td><td>NIMBUS_5ecure and Desk 14 readable</td><td class="check">☐</td></tr>
+      <tr><td>Access evidence</td><td>09:14 and 02:30 timeline can be correlated</td><td class="check">☐</td></tr>
+      <tr><td>Host-gated alert</td><td>EXT-4471 and bucket 882 readable after release</td><td class="check">☐</td></tr>
+      <tr><td>Terminal</td><td>Full test chain reaches win screen</td><td class="check">☐</td></tr>
+    </tbody>
+  </table>
+  <div class="warning">Keep this guide and the complete print pack as your master set. Reprint individual sheets only when damaged, changed, or consumed.</div>
+  <div class="foot"><span>Room ready when every box is checked</span><span>PRINT GUIDE · 3</span></div>
+</section>
+</body>
+</html>

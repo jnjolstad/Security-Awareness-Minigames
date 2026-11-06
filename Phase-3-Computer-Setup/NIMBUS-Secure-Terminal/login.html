@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in &middot; NIMBUS Secure Terminal</title>
+<link rel="stylesheet" href="assets/css/nimbus.css">
+</head>
+<body>
+<div class="center">
+  <form class="panel auth" id="form" autocomplete="off">
+    <div class="logo-xl"></div>
+    <h1>NIMBUS Secure Terminal</h1>
+    <div class="sub">RESTRICTED &middot; AUTHORIZED PERSONNEL ONLY</div>
+
+    <div class="mission-clock" aria-live="polite">
+      <div class="kicker">BLACKFROST &middot; DEPLOYMENT IN</div>
+      <div class="clock" id="clock">45:00</div>
+      <div class="note mono" id="clockStatus">AWAITING HOST START</div>
+    </div>
+
+    <button class="btn start-btn" type="button" id="startMission">Start Mission</button>
+
+    <label for="user">Username</label>
+    <input class="input" id="user" disabled>
+
+    <label for="pass">Passphrase</label>
+    <input class="input" id="pass" type="password" placeholder="enter passphrase" autofocus disabled>
+
+    <button class="btn" id="loginButton" type="submit" style="width:100%" disabled>Sign in</button>
+    <div class="msg" id="m"></div>
+  </form>
+</div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/state.js"></script>
+<script>
+  var clockEl = document.getElementById("clock");
+  var clockStatusEl = document.getElementById("clockStatus");
+  var startButton = document.getElementById("startMission");
+  var userEl = document.getElementById("user");
+  var loginButton = document.getElementById("loginButton");
+  var passEl = document.getElementById("pass");
+  userEl.value = NIMBUS_CONFIG.username;
+
+  function renderClock() {
+    var started = NST.timerStarted();
+    clockEl.textContent = NST.fmt(NST.remaining());
+    clockStatusEl.textContent = started ? "MISSION IN PROGRESS" : "AWAITING HOST START";
+    startButton.classList.toggle("hidden", started);
+    userEl.disabled = !started;
+    passEl.disabled = !started;
+    loginButton.disabled = !started;
+  }
+
+  startButton.addEventListener("click", function () {
+    NST.startTimer();
+    renderClock();
+  });
+
+  renderClock();
+  setInterval(renderClock, 1000);
+
+  document.getElementById("form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var u = NST.norm(document.getElementById("user").value);
+    var p = passEl.value;
+    var pN = NST.norm(p);
+
+    // Decoy: the expired sticky-note password
+    if (pN === NST.norm(NIMBUS_CONFIG.expiredPassword)) {
+      NST.show("m", "err", "&#9888; PASSWORD EXPIRED 90 days ago. Use your new <b>passphrase</b> (four object labels).");
+      return;
+    }
+    if (u !== NST.norm(NIMBUS_CONFIG.username)) {
+      NST.show("m", "err", "Access denied. Unknown user. (Hint: the desk nameplate.)");
+      return;
+    }
+    if (pN === NST.norm(NIMBUS_CONFIG.passphrase)) {
+      NST.mark("login");
+      NST.show("m", "good", "Passphrase accepted. Requesting second factor&hellip;");
+      setTimeout(function () { location.href = "mfa.html"; }, 700);
+    } else {
+      NST.show("m", "err", "Access denied. Check the passphrase policy on the desk.");
+    }
+  });
+</script>
+</body>
+</html>

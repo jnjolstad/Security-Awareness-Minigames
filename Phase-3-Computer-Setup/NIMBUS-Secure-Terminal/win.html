@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contained &middot; NIMBUS Secure Terminal</title>
+<link rel="stylesheet" href="assets/css/nimbus.css">
+</head>
+<body>
+<div class="center">
+  <div class="panel" style="max-width:680px;text-align:center;border-color:var(--ok)">
+    <div class="kicker" style="color:var(--ok)">INCIDENT CONTAINED</div>
+    <h1 style="font-size:34px;margin:.2em 0">&#10003; BLACKFROST NEUTRALIZED</h1>
+    <p class="note" id="time" style="font-size:15px"></p>
+
+    <div style="text-align:left;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:18px;margin:18px 0">
+      <p style="margin:0 0 10px"><b>Message from Alex Mercer:</b></p>
+      <p style="margin:0;white-space:pre-wrap">"BLACKFROST neutralized. Marcus Webb's access revoked. Client data safe.
+
+The intruder wasn't a hacker in a hoodie &mdash; it was our IT contractor. A badge we trusted without review, access we never revisited, trust he exploited. You didn't blame the easy target; you followed the evidence. That's real incident response.
+
+I'm safe &mdash; I went dark because I couldn't tell who was watching. Thank you.
+&mdash; Alex"</p>
+    </div>
+
+    <div style="font-size:48px">&#127942;</div>
+    <h2 style="margin:.2em 0">ROOM COMPLETE</h2>
+    <p class="note">Ask your host for the debrief &mdash; you just lived through 9 real security lessons.</p>
+    <button class="btn ghost" id="reset" type="button" style="margin-top:10px">Reset terminal</button>
+  </div>
+</div>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/state.js"></script>
+<script>
+  var t = NST.get("winTime");
+  document.getElementById("time").innerHTML = t ? ("Stopped with <b>" + t + "</b> on the clock.") : "";
+  document.getElementById("reset").addEventListener("click", function () {
+    NST.reset();
+    location.replace("index.html");
+  });
+</script>
+</body>
+</html>

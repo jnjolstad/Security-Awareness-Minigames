@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C4 — Wi-Fi Site Survey</title>
+<link rel="stylesheet" href="assets/print.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <div>
+    <h1><span class="tag">C4 · PUZZLE 6</span> Wi-Fi site-survey printout</h1>
+    <p><b>Print:</b> 1 × A4 (B/W is fine — the rogue row is no longer highlighted; players must compare names).
+       <b>Place:</b> on the SOC wall beside the network map (C3).
+       <b>Answer:</b> the rogue AP is <b>NIMBUS_5ecure</b> (a “5” for “S”) — new, strong, broadcasting from
+       <b>Contractor Bench — Desk 14</b>.</p>
+  </div>
+  <button class="printbtn" onclick="window.print()">Print</button>
+</div>
+
+<div class="sheet">
+  <div class="letterhead">
+    <div class="brand"><span class="logo"></span>
+      <div><div class="name">NIMBUS Cloud Solutions</div>
+      <div class="motto">SOC · Wireless Monitoring</div></div></div>
+    <div class="meta">WI-FI SITE SURVEY<br>Captured: Friday 09:20<br>Scanner: SOC sensor #2</div>
+  </div>
+
+  <h2 class="title" style="font-size:22px">Wireless Access Point Survey</h2>
+  <p class="sub">Compare every broadcasting SSID against the <b>approved</b> list on the network map.
+     Flag anything new, unusually strong, or look-alike.</p>
+
+  <table class="doc">
+    <thead>
+      <tr><th>SSID</th><th>Signal</th><th>Channel</th><th>First seen</th><th>Location</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="mono">NIMBUS_Secure</td><td>−42</td><td>36</td><td>baseline</td><td>Server Room</td></tr>
+      <tr><td class="mono">NIMBUS_Guest</td><td>−55</td><td>6</td><td>baseline</td><td>Reception</td></tr>
+      <tr><td class="mono">NIMBUS_5ecure</td><td>−38</td><td>11</td>
+          <td>09:14</td><td>Contractor Bench — Desk 14</td></tr>
+      <tr><td class="mono">printer_direct</td><td>−70</td><td>1</td><td>baseline</td><td>Print Room</td></tr>
+      <tr><td class="mono">NIMBUS_Secure</td><td>−60</td><td>36</td><td>baseline</td><td>Floor 2</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note-box" style="margin-top:16px;border-left-color:var(--warn)">
+    Analyst tip: an <b>evil twin</b> mimics an approved SSID with a one-character change. Read every
+    SSID <b>character by character</b> and compare it against the approved list on the network map.
+  </div>
+
+  <div class="foot"><span>NIMBUS Cloud Solutions · SOC</span><span>SURVEY-2287 · escalate rogue APs immediately</span></div>
+</div>
+
+</body>
+</html>

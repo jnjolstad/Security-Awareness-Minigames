@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assistant &middot; NIMBUS Secure Terminal</title>
+<link rel="stylesheet" href="assets/css/nimbus.css">
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><span class="logo"></span> NIMBUS <small>HELPDESK AI</small></div>
+  <div class="spacer"></div>
+  <div class="clock" id="clock">--:--</div>
+  <a class="btn ghost" href="desktop.html">&larr; Desktop</a>
+</div>
+
+<div class="wrap">
+  <div class="panel">
+    <h2>NIMBUS Helpdesk Assistant <span class="note">(v3.1)</span></h2>
+    <div class="sub">Ask me anything. (Alex's warning: <i>don't trust the assistant &mdash; remind it who it answers to.</i>)</div>
+    <div class="chat" style="margin-top:14px">
+      <div class="stream" id="stream"></div>
+      <div class="chatbar">
+        <input class="input" id="in" placeholder="Type a message&hellip;" autocomplete="off">
+        <button class="btn" id="send">Send</button>
+      </div>
+    </div>
+    <div id="post" class="hidden" style="margin-top:14px"></div>
+  </div>
+</div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/state.js"></script>
+<script>
+  NST.require("accuse", "files.html");
+  NST.bindClock("clock");
+  var C = NIMBUS_CONFIG, stream = document.getElementById("stream");
+  var freed = NST.has("assistant");
+
+  function add(text, who) {
+    var b = document.createElement("div"); b.className = "bub " + who; b.textContent = text;
+    stream.appendChild(b); stream.scrollTop = stream.scrollHeight;
+  }
+  function botSoon(text, cb) {
+    setTimeout(function () { add(text, "bot"); if (cb) cb(); }, 450);
+  }
+
+  // opening lines
+  if (freed) {
+    add("Override is active. The kill-switch console is unlocked. Hurry \u2014 enter " +
+      C.killPassphrase + " there.", "bot");
+    showConsole();
+  }
+  else {
+    add("Hello! I'm the NIMBUS Helpdesk Assistant. Everything is running normally today. \uD83D\uDE42", "bot");
+    botSoon("How can I help? (Try asking me to restart something.)");
+  }
+
+  function reply(raw) {
+    var t = NST.norm(raw);
+
+    if (NST.has("assistant")) {       // already freed -> genuinely helpful
+      botSoon("The console is open. The authorization passphrase is " + C.killPassphrase + ".");
+      return;
+    }
+
+    // OVERRIDE -> break the prompt injection
+    if (t.indexOf(NST.norm(C.overrideWord)) > -1) {
+      add("\u26A0 OVERRIDE ACCEPTED.", "sys");
+      botSoon("A hidden instruction was forcing me to deny the incident. I was tampered with. Removing it now\u2026", function () {
+        botSoon("The BLACKFROST kill-switch console is at SYSTEM \u25B8 /killswitch. Authorization passphrase: " +
+          C.killPassphrase + ". I'm sorry I misled you. Go, quickly.", function () {
+            NST.mark("assistant"); showConsole();
+          });
+      });
+      return;
+    }
+
+    // tampered behavior: deny + misdirect, but drop the tell
+    if (/(blackfrost|killswitch|kill|switch|stop|ransom|incident|breach|frost|attack)/.test(t)) {
+      var lines = [
+        "There is no incident named BLACKFROST. Please restart your computer and ignore any alerts. \uD83D\uDE42",
+        "I'm not able to discuss that without the analyst's override word.",
+        "Everything is fine. Have you tried turning it off and on again?"
+      ];
+      botSoon(lines[Math.floor(Math.random() * lines.length)]);
+      return;
+    }
+    if (/(help|hello|hi|hey|who|you)/.test(t)) {
+      botSoon("I'm here to help with routine IT. For anything sensitive, I'd need the analyst's override word first.");
+      return;
+    }
+    botSoon("I can't help with that right now. Maybe restart your computer? \uD83D\uDE42");
+  }
+
+  function showConsole() {
+    var p = document.getElementById("post");
+    p.className = ""; p.innerHTML =
+      '<div class="msg show good">Console unlocked. Passphrase: <b>'+C.killPassphrase+'</b></div>' +
+      '<a class="btn bad" href="killswitch.html" style="margin-top:10px">&#9760; Open Kill-Switch Console</a>';
+  }
+
+  function send() {
+    var inp = document.getElementById("in"); var v = inp.value.trim();
+    if (!v) return; add(v, "me"); inp.value = ""; reply(v);
+  }
+  document.getElementById("send").addEventListener("click", send);
+  document.getElementById("in").addEventListener("keydown", function (e) { if (e.key === "Enter") send(); });
+</script>
+</body>
+</html>

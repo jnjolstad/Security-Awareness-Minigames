@@ -1,0 +1,40 @@
+.pn{position:absolute;inset:0;background:#f3f2ef;color:#1d2226;font:13px/1.45 "Segoe UI",Arial,sans-serif;display:grid;grid-template-columns:320px 1fr;grid-template-rows:46px 1fr;gap:0 16px}
+.pn-top{grid-column:1/-1;background:#fff;border-bottom:1px solid #e0dfdc;display:flex;align-items:center;gap:22px;padding:0 22px}
+.pn-logo{font-size:20px;color:#0a66c2}.pn-logo span{background:#0a66c2;color:#fff;border-radius:3px;padding:0 4px;margin-left:2px}
+.pn-search{background:#edf3f8;color:#666;border-radius:4px;padding:5px 14px;width:260px}
+.pn-nav{margin-left:auto;color:#666}
+.pn-profile{background:#fff;margin:14px 0 14px 16px;border-radius:8px;border:1px solid #e0dfdc;overflow:hidden;padding:0 16px 12px;position:relative}
+.pn-banner{height:64px;margin:0 -16px;background:linear-gradient(120deg,#0a66c2,#5f9bd6 60%,#a8d0f0)}
+.pn-avatar{width:76px;height:76px;border-radius:50%;background:#b98b6a;border:4px solid #fff;margin-top:-38px;display:grid;place-items:center;color:#fff;font-size:24px;font-weight:700}
+.pn-profile h2{margin:6px 0 0;font-size:19px}
+.pn-profile p{margin:2px 0}
+.pn-headline{padding:1px 3px;margin-left:-3px!important}
+.pn-loc,.pn-conn{color:#666;font-size:12px}
+.pn-company{color:#0a66c2;font-weight:600;padding:0 2px}
+.pn-conn{color:#0a66c2!important;font-weight:600;display:inline-block;padding:0 2px}
+.pn-profile h3{font-size:13px;margin:12px 0 4px}
+.pn-contact p{display:block;padding:1px 3px;margin-left:-3px}
+.pn-skills{padding:2px 3px;margin-left:-3px}
+.pn-skills span{display:inline-block;border:1px solid #c7c7c7;border-radius:12px;padding:1px 9px;margin:0 4px 5px 0;font-size:12px}
+.pn-edu{padding:2px 3px;margin-left:-3px}
+.pn-feed{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px 16px 14px 0;overflow:hidden}
+.pn-col{display:flex;flex-direction:column;gap:10px}
+.post{background:#fff;border:1px solid #e0dfdc;border-radius:8px;padding:10px 14px}
+.post p{margin:6px 0}
+.post-head{display:flex;gap:9px;align-items:center}
+.post-head small{display:block;color:#666;font-size:11px}
+.mini{width:32px;height:32px;border-radius:50%;background:#b98b6a;color:#fff;font-size:11px;display:grid;place-items:center;font-weight:700}
+.selfie{position:relative;height:178px;border-radius:6px;overflow:hidden;background:linear-gradient(180deg,#d9e6ef,#b8ccd9 60%,#8fa7b8)}
+.selfie .face{position:absolute;left:50%;top:18px;width:74px;height:88px;margin-left:-37px;border-radius:45%;background:#e3b892;box-shadow:inset 0 14px 0 #5a3d29}
+.selfie .body{position:absolute;left:50%;bottom:-30px;width:210px;height:110px;margin-left:-105px;border-radius:50% 50% 0 0;background:#2f4858}
+.selfie .lanyard{position:absolute;left:50%;top:100px;width:40px;height:44px;margin-left:-20px;border:4px solid #0a66c2;border-top:none;border-radius:0 0 20px 20px}
+.selfie .badge{position:absolute;left:50%;top:136px;margin-left:-46px;width:92px;background:#fff;border-radius:4px;padding:4px 6px;font-size:8px;line-height:1.2;box-shadow:0 2px 6px #0004;text-align:center}
+.selfie .badge b{color:#0a66c2;font-size:9px;display:block}
+.selfie .badge i{display:block;width:22px;height:22px;margin:2px auto;background:#b98b6a;border-radius:2px}
+.selfie .badge em{display:block;font-style:normal;letter-spacing:-1px;font-size:9px}
+.org{display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px 0 2px}
+.org>div{display:flex;gap:8px}
+.org span{background:#edf3f8;border-radius:5px;padding:3px 9px;font-weight:600;font-size:12px;text-align:center}
+.org small{display:block;font-weight:400;color:#666;font-size:10.5px}
+.dog{font-size:30px;text-align:center;background:#f6efe2;border-radius:6px;padding:4px}
+.comment{background:#fff;border:1px solid #e0dfdc;border-radius:8px;padding:8px 14px;color:#444}

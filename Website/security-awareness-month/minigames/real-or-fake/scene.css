@@ -1,0 +1,29 @@
+.rf{position:absolute;inset:0;background:#1e2733;display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:18px;font:13px/1.45 "Segoe UI",Arial,sans-serif;color:#1b1b1b}
+.br{background:#fff;border-radius:8px;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.br-top{background:#dee1e6;padding:6px 12px;display:flex;justify-content:space-between;font-size:11px;color:#555}
+.dots{color:#9aa0a6;letter-spacing:2px}
+.label{font-weight:600;letter-spacing:.06em}
+.br-url{display:flex;gap:6px;align-items:center;margin:6px 10px;background:#f1f3f4;border-radius:14px;padding:4px 12px;font-size:12.5px}
+.br-url span{padding:0 2px}
+.page{flex:1;background:linear-gradient(160deg,#e9eef5,#d5dfeb);display:grid;place-items:center}
+.rf-card{background:#fff;width:380px;padding:22px 28px;box-shadow:0 4px 18px #0002}
+.rf-brand{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:15px;padding:2px 4px}
+.nw{background:#0b5cad;color:#fff;border-radius:4px;width:24px;height:24px;display:grid;place-items:center}
+.who{margin:12px 0 0;color:#555}
+.rf-card h2{font-size:20px;font-weight:600;margin:8px 0 12px}
+.push{text-align:center;padding:8px}
+.push .phone{font-size:26px}
+.push p{margin:6px 0}
+.num{font-size:40px;font-weight:600;color:#0b5cad}
+.rf-small{font-size:12px;color:#555;margin:10px 0 0}
+.lnk{color:#0b5cad;text-decoration:underline;padding:0 2px}
+.fields{padding:2px 4px;margin:0 -4px 6px}
+.fields label{display:block;font-size:12px;color:#444;margin-top:6px}
+.in{border-bottom:1px solid #666;padding:3px 0}
+.in.ph{color:#999}
+.timer{background:#fde7e9;color:#a4262c;border-radius:4px;padding:4px 10px;margin:8px 0;display:inline-block}
+.go{display:block;text-align:center;background:#0b5cad;color:#fff;padding:7px;border-radius:2px;margin-top:6px}
+.notif{position:absolute;left:14px;top:72px;width:250px;background:#fff;border-radius:8px;box-shadow:0 6px 20px #0005;padding:10px 14px;z-index:2;font-size:12.5px}
+.notif div{display:flex;justify-content:flex-end;gap:6px;margin-top:6px}
+.notif .b{border:1px solid #c8c8c8;border-radius:14px;padding:2px 12px}
+.notif .b.pri{background:#0b5cad;color:#fff;border-color:#0b5cad}

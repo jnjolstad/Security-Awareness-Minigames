@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C2 — Phishing Email (optional print prop)</title>
+<link rel="stylesheet" href="assets/print.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <div>
+    <h1><span class="tag">C2 · PUZZLE 4 · OPTIONAL</span> Phishing email printout</h1>
+    <p><b>Optional</b> — the inbox already lives on screen (<span class="mono">mail.html</span>). Print this only
+       if you want a tactile copy pinned near the PC, or for a low-tech variant. <b>Do not annotate the red flags
+       on the printed copy</b> (players must spot them). 1 × A4.</p>
+  </div>
+  <button class="printbtn" onclick="window.print()">Print</button>
+</div>
+
+<div class="sheet">
+  <div class="letterhead">
+    <div class="brand"><span class="logo"></span>
+      <div><div class="name">NIMBUS Mail</div>
+      <div class="motto">Quarantine export · recovered message</div></div></div>
+    <div class="meta">Dana Cole mailbox<br>Flagged for review by A. Mercer</div>
+  </div>
+
+  <table class="doc" style="margin-bottom:14px">
+    <tr><th style="width:90px">From</th><td>it-support@nimbus-cloudsupport.com</td></tr>
+    <tr><th>To</th><td>d.cole@nimbuscloud.com</td></tr>
+    <tr><th>Subject</th><td>⚠ ACTION REQUIRED: your password expires in 24 hours — verify now</td></tr>
+    <tr><th>Date</th><td>Friday, 09:06</td></tr>
+  </table>
+
+  <div style="border:1px solid var(--line);border-radius:8px;padding:16px 18px;font-size:14px;line-height:1.7">
+    <p style="margin-top:0">Dear User,</p>
+    <p>Our records show your password <b>EXPIRES IN 24 HOURS</b>. To avoid losing access you must
+       <b>VERIFY IMMEDIATELY</b>:</p>
+    <p class="mono" style="background:var(--soft);padding:10px 12px;border-radius:6px;word-break:break-all">
+       http://nimbus-verify.account-secure.ru/?id=7793</p>
+    <p>Failure to act will permanently lock your account.</p>
+    <p style="margin-bottom:0">— IT Support</p>
+  </div>
+
+  <p class="sub" style="margin-top:18px">Use the “Spot the Phish” checklist on the wall. If this message is fake,
+     <b>Report</b> it from the terminal — don’t click the link.</p>
+
+  <div class="foot"><span>NIMBUS Mail · printed evidence copy</span><span>Report to: security@nimbuscloud.com</span></div>
+</div>
+
+</body>
+</html>

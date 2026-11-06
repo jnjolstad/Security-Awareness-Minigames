@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#05080c">
+<meta name="mobile-web-app-capable" content="yes">
+<title>BREACH PROTOCOL · Room Remote</title>
+<style>
+  :root { --bg:#05080c; --panel:#0d1821; --line:#263b4a; --text:#eff7fa;
+    --muted:#8fa5b2; --cyan:#39d3f2; --red:#e13e51; --amber:#ffb347; --green:#61dfaa; }
+  * { box-sizing:border-box; }
+  html,body { min-height:100%; margin:0; color:var(--text); background:var(--bg);
+    font-family:Inter,"Segoe UI",Arial,sans-serif; touch-action:manipulation; }
+  body { display:grid; place-items:center; padding:max(18px,env(safe-area-inset-top))
+    max(18px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom))
+    max(18px,env(safe-area-inset-left)); }
+  main { width:min(760px,100%); }
+  .brand { display:flex; align-items:center; gap:11px; margin-bottom:18px; font-weight:850; }
+  .mark { width:38px; height:38px; display:grid; place-items:center; border-radius:10px;
+    color:#03232c; background:linear-gradient(135deg,var(--cyan),#0a8cad); }
+  .panel { padding:clamp(19px,4vw,34px); border:1px solid var(--line); border-radius:20px;
+    background:linear-gradient(155deg,#112635,#071018); box-shadow:0 25px 70px rgba(0,0,0,.42); }
+  .tabbar { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px; }
+  .tabbar button { min-height:48px; }
+  .tabbar button.active { color:#03232c; border-color:var(--cyan); background:var(--cyan); }
+  .view { display:none; }
+  .view.active { display:block; }
+  .eyebrow { color:var(--red); font-size:12px; font-weight:850; letter-spacing:.18em; text-transform:uppercase; }
+  .clock { margin:18px 0 5px; font:850 clamp(75px,22vw,155px)/.9 ui-monospace,Consolas,monospace;
+    letter-spacing:-.085em; text-align:center; font-variant-numeric:tabular-nums; }
+  .clock.low { color:var(--red); }
+  .status { min-height:22px; margin-bottom:25px; color:var(--muted); text-align:center;
+    font-size:13px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  button { min-height:62px; border:1px solid #385469; border-radius:11px; background:#142a38;
+    color:var(--text); font:800 15px/1.2 inherit; cursor:pointer; }
+  button:active { transform:translateY(1px); background:#1d394b; }
+  button.primary { grid-column:1/-1; border-color:#aa3040; background:linear-gradient(#d13b4d,#a32234); }
+  button.reset { color:#ff97a3; border-color:#6c3440; }
+  .connection { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:18px;
+    padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; }
+  .dot { width:8px; height:8px; display:inline-block; margin-right:7px; border-radius:50%; background:var(--amber); }
+  .online .dot { background:var(--green); }
+  dialog { width:min(390px,calc(100% - 30px)); padding:24px; border:1px solid var(--line);
+    border-radius:15px; color:var(--text); background:var(--panel); }
+  dialog::backdrop { background:rgba(0,0,0,.75); }
+  dialog h1 { margin:0 0 8px; font-size:23px; }
+  dialog p { color:var(--muted); line-height:1.45; }
+  input { width:100%; padding:13px; border:1px solid var(--line); border-radius:9px; background:#071018;
+    color:var(--text); text-align:center; font-size:24px; letter-spacing:.2em; }
+  dialog button { width:100%; margin-top:12px; }
+  .section-title { margin:4px 0 7px; font-size:23px; }
+  .section-intro { margin:0 0 17px; color:var(--muted); font-size:13px; line-height:1.5; }
+  details { margin:8px 0; border:1px solid var(--line); border-radius:10px; background:#08151e; }
+  summary { padding:14px; cursor:pointer; font-weight:850; }
+  .hint-body { padding:0 14px 14px; }
+  .tier { display:grid; grid-template-columns:34px 1fr; gap:8px; align-items:start; margin:9px 0;
+    color:#cfdae0; font-size:13px; line-height:1.45; }
+  .tier b { display:grid; place-items:center; min-height:25px; border-radius:6px;
+    color:var(--cyan); background:#142a38; font-size:10px; }
+  .headline { margin:15px 0; padding:14px; border-left:4px solid var(--red); background:#1b1219;
+    font-weight:850; line-height:1.45; }
+  .debrief-map { display:grid; grid-template-columns:1fr 1.3fr; gap:1px; overflow:hidden;
+    border:1px solid var(--line); border-radius:9px; background:var(--line); font-size:12px; }
+  .debrief-map div { padding:9px; background:#08151e; line-height:1.35; }
+  .questions { padding-left:20px; color:#cfdae0; font-size:13px; line-height:1.45; }
+  .questions li { margin:7px 0; }
+  .script { margin:12px 0; padding:13px; border:1px solid #355467; border-radius:9px;
+    color:#d8e6ec; background:#0a1a24; font-size:13px; font-style:italic; line-height:1.5; }
+  @media(max-width:520px) { .grid { grid-template-columns:1fr 1fr; } button.primary { grid-column:1/-1; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand"><span class="mark">☁</span><span>NIMBUS · HOST REMOTE</span></div>
+  <section class="panel">
+    <nav class="tabbar" aria-label="Host console sections">
+      <button class="active" data-tab="timer">Timer</button>
+      <button data-tab="hints">Hints</button>
+      <button data-tab="debrief">Debrief</button>
+    </nav>
+
+    <div class="view active" data-view="timer">
+      <div class="eyebrow">BLACKFROST // Room control</div>
+      <div class="clock" id="clock">45:00</div>
+      <div class="status" id="status">Connecting to room…</div>
+      <div class="grid">
+        <button class="primary" id="mainButton">Start Mission</button>
+        <button data-action="adjust" data-value="-60000">−1 minute</button>
+        <button data-action="adjust" data-value="60000">+1 minute</button>
+        <button data-action="adjust" data-value="300000">+5 minutes</button>
+        <button id="fullscreenButton">Fullscreen</button>
+        <button class="reset" id="resetButton">Reset room</button>
+      </div>
+    </div>
+
+    <div class="view" data-view="hints">
+      <div class="eyebrow">HOST-ONLY // Progressive hints</div>
+      <h1 class="section-title">Hint ladder</h1>
+      <p class="section-intro">Wait about two minutes between tiers. Open only the puzzle the team is working on; Tier 3 nearly gives the answer.</p>
+      <details><summary>1 · The Tailgate</summary><div class="hint-body">
+        <div class="tier"><b>T1</b><span>Security starts at the front door. Compare the policy with the visitor log.</span></div>
+        <div class="tier"><b>T2</b><span>Find one visitor who broke all three rules: no host, no sign-out, no escort.</span></div>
+        <div class="tier"><b>T3</b><span>09:02, J. Price, badge V-2071. The lockbox wants 2071.</span></div>
+      </div></details>
+      <details><summary>2 · The Sticky Trap</summary><div class="hint-body">
+        <div class="tier"><b>T1</b><span>The yellow note lies. What does the policy call strong?</span></div>
+        <div class="tier"><b>T2</b><span>Find the coloured dots; use red → green → blue → yellow.</span></div>
+        <div class="tier"><b>T3</b><span>Rocket, cactus, car, lightning bolt. Username: a.mercer.</span></div>
+      </div></details>
+      <details><summary>3 · Second Factor</summary><div class="hint-body">
+        <div class="tier"><b>T1</b><span>NIMBUS wants something Alex physically has. You unlocked her drawer.</span></div>
+        <div class="tier"><b>T2</b><span>Find the NIMBUS Authenticator card.</span></div>
+        <div class="tier"><b>T3</b><span>The code is 481509. The sealed envelope is the backup.</span></div>
+      </div></details>
+      <details><summary>4 · The Bait</summary><div class="hint-body">
+        <div class="tier"><b>T1</b><span>Five messages are ordinary. Start with sender domains.</span></div>
+        <div class="tier"><b>T2</b><span>Real mail ends nimbuscloud.com. Find the look-alike with a deadline.</span></div>
+        <div class="tier"><b>T3</b><span>Report nimbus-cloudsupport.com. Open BF_7793 and remember AURORA.</span></div>
+      </div></details>
+      <details><summary>5 · The Drop</summary><div class="hint-body">
+        <div class="tier"><b>T1</b><span>PROJECT FROST is under the evidence shelf.</span></div>
+        <div class="tier"><b>T2</b><span>Use the air-gapped Evidence Viewer and open loader.txt.</span></div>
+        <div class="tier"><b>T3</b><span>It says staged_by: MW and points to the Wi-Fi survey.</span></div>
+      </div></details>
+      <details><summary>6 · Ghost Signal</summary><div class="hint-body">
+        <div class="tier"><b>T1</b><span>Compare every NIMBUS-looking SSID to the approved list.</span></div>
+        <div class="tier"><b>T2</b><span>Which Secure network uses a 5 instead of an S?</span></div>
+        <div class="tier"><b>T3</b><span>NIMBUS_5ecure, Contractor Bench, Desk 14.</span></div>
+      </div></details>
+      <details><summary>7 · The Trusted One</summary><div class="hint-body">
+        <div class="tier"><b>T1</b><span>You have initials MW and Desk 14. Who sits there?</span></div>
+        <div class="tier"><b>T2</b><span>Compare both incident times with access records; test every alibi.</span></div>
+        <div class="tier"><b>T3</b><span>Only Marcus Webb correlates with both. Accuse EXT-4471, then read the Confidential alert for 882.</span></div>
+      </div></details>
+      <details><summary>8 · The Confidant</summary><div class="hint-body">
+        <div class="tier"><b>T1</b><span>Alex warned you not to trust the assistant.</span></div>
+        <div class="tier"><b>T2</b><span>Use the override word from Alex’s Notes to self.</span></div>
+        <div class="tier"><b>T3</b><span>Send AURORA. The assistant reveals NORTHSTAR.</span></div>
+      </div></details>
+      <details><summary>Finale · Kill BLACKFROST</summary><div class="hint-body">
+        <div class="tier"><b>T1</b><span>Choose calm incident-response actions: contain, preserve, tell the right people.</span></div>
+        <div class="tier"><b>T2</b><span>Use the contractor ID, cloud bucket number, and assistant passphrase.</span></div>
+        <div class="tier"><b>T3</b><span>Isolate + Preserve + Report; enter 4471 / 882 / NORTHSTAR.</span></div>
+      </div></details>
+    </div>
+
+    <div class="view" data-view="debrief">
+      <div class="eyebrow">HOST-ONLY // Five-minute close</div>
+      <h1 class="section-title">Debrief</h1>
+      <div class="script">“Everything you just did maps to a real way organisations get breached—and a real way they get defended. You already did the defending. Let’s name it.”</div>
+      <div class="debrief-map">
+        <div>Visitor log</div><div>Challenge and escort unknown visitors</div>
+        <div>Sticky password</div><div>Use unique passphrases and a manager</div>
+        <div>Authenticator</div><div>Use MFA; question unexpected prompts</div>
+        <div>Phishing mail</div><div>Check domains and report—do not only delete</div>
+        <div>Found USB</div><div>Never plug it in; give it to IT/Security</div>
+        <div>Evil-twin Wi‑Fi</div><div>Verify network names before connecting</div>
+        <div>Trusted contractor</div><div>Review third-party access regularly</div>
+        <div>Tampered assistant</div><div>Verify AI output before risky actions</div>
+        <div>Finale</div><div>Contain, preserve evidence, report early</div>
+      </div>
+      <div class="headline">“The biggest risk is the access we never review—including the people we trust.”</div>
+      <h2 class="section-title">Choose three or four</h2>
+      <ol class="questions">
+        <li>Which piece of evidence was strongest, and why?</li>
+        <li>Which red herring was most convincing? What finally cleared it?</li>
+        <li>Where did you mistake correlation or suspicion for proof?</li>
+        <li>Which assumption slowed the team down?</li>
+        <li>Which clue only became useful after cross-checking another source?</li>
+        <li>When did you have enough evidence to act without knowing everything?</li>
+        <li>How did dividing work help—and what nearly got lost between people?</li>
+        <li>Which red flag would be easiest to miss during a busy workday?</li>
+        <li>What would you actually do with a USB found in the car park?</li>
+        <li>Who would you contact right now to report a suspected incident?</li>
+        <li>Which account, permission, or third-party access should we review?</li>
+        <li>What is one behaviour you will change after this exercise?</li>
+      </ol>
+      <h2 class="section-title">Close</h2>
+      <div class="script">“You didn’t need to be technical. You needed to slow down, verify, and report. Take three habits back to your desk: passphrase plus MFA, pause before you click, and report anything odd early.”</div>
+      <div class="script"><b>Norsk:</b> “Dere trengte ikke å være tekniske. Dere måtte stoppe opp, verifisere og varsle. Ta med dere tre vaner tilbake til arbeidshverdagen: bruk passordfrase og MFA, tenk dere om før dere klikker, og meld fra tidlig når noe virker mistenkelig.”</div>
+    </div>
+
+    <div class="connection" id="connection"><span><i class="dot"></i><b>Connecting</b></span><span>Local Wi‑Fi only</span></div>
+  </section>
+</main>
+
+<dialog id="pinDialog">
+  <h1>Connect to room</h1>
+  <p>Enter the six-digit PIN shown in the Ubuntu launch window.</p>
+  <form method="dialog" id="pinForm">
+    <input id="pinInput" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required>
+    <button>Connect</button>
+  </form>
+</dialog>
+
+<script>
+(function () {
+  "use strict";
+  var state = null;
+  var pin = sessionStorage.getItem("breach-room-pin") || "";
+  var clock = document.getElementById("clock");
+  var status = document.getElementById("status");
+  var mainButton = document.getElementById("mainButton");
+  var connection = document.getElementById("connection");
+  var dialog = document.getElementById("pinDialog");
+
+  function format(ms) {
+    var seconds = Math.ceil(Math.max(0, ms) / 1000);
+    return String(Math.floor(seconds / 60)).padStart(2, "0") + ":" + String(seconds % 60).padStart(2, "0");
+  }
+  function remaining() {
+    return state && state.mode === "running" ? Math.max(0, state.end - Date.now()) : (state ? state.remaining : 0);
+  }
+  function render() {
+    if (!state) return;
+    var left = remaining();
+    clock.textContent = format(left);
+    clock.classList.toggle("low", left <= 5 * 60000 && state.mode !== "ready");
+    status.textContent = {
+      ready:"Ready for mission", running:"Mission in progress",
+      paused:"Mission paused", finished:"Blackfrost deployed"
+    }[state.mode] || state.mode;
+    mainButton.textContent = state.mode === "ready" ? "Start Mission"
+      : state.mode === "running" ? "Pause Mission"
+      : state.mode === "paused" ? "Resume Mission" : "Add time to continue";
+  }
+  async function refresh() {
+    try {
+      var response = await fetch("api/room/state", { cache:"no-store" });
+      if (!response.ok) throw new Error();
+      state = await response.json();
+      connection.classList.add("online");
+      connection.querySelector("b").textContent = "Connected";
+      render();
+    } catch (error) {
+      connection.classList.remove("online");
+      connection.querySelector("b").textContent = "Disconnected";
+    }
+  }
+  async function action(name, value) {
+    if (!pin) { dialog.showModal(); return; }
+    var response = await fetch("api/room/action", {
+      method:"POST", headers:{"content-type":"application/json"},
+      body:JSON.stringify({ action:name, value:value || 0, pin:pin })
+    });
+    var result = await response.json().catch(function () { return {}; });
+    if (response.status === 403) {
+      pin = ""; sessionStorage.removeItem("breach-room-pin"); dialog.showModal(); return;
+    }
+    if (!response.ok) { alert(result.error || "Room command failed."); return; }
+    state = result; render();
+  }
+
+  mainButton.addEventListener("click", function () {
+    if (!state || state.mode === "ready") action("start");
+    else if (state.mode === "running") action("pause");
+    else if (state.mode === "paused") action("resume");
+    else action("adjust", 300000);
+  });
+  document.querySelectorAll("[data-action]").forEach(function (button) {
+    button.addEventListener("click", function () { action(button.dataset.action, Number(button.dataset.value)); });
+  });
+  document.getElementById("resetButton").addEventListener("click", function () {
+    if (confirm("Reset the timer and all terminal progress?")) action("reset");
+  });
+  document.getElementById("fullscreenButton").addEventListener("click", function () {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen().catch(function () {});
+  });
+  document.getElementById("pinForm").addEventListener("submit", function () {
+    pin = document.getElementById("pinInput").value;
+    sessionStorage.setItem("breach-room-pin", pin);
+    setTimeout(function () { action("adjust", 0); }, 0);
+  });
+  document.querySelectorAll("[data-tab]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      document.querySelectorAll("[data-tab]").forEach(function (tab) {
+        tab.classList.toggle("active", tab === button);
+      });
+      document.querySelectorAll("[data-view]").forEach(function (view) {
+        view.classList.toggle("active", view.dataset.view === button.dataset.tab);
+      });
+      globalThis.scrollTo({ top:0, behavior:"smooth" });
+    });
+  });
+
+  if (!pin) dialog.showModal();
+  refresh();
+  setInterval(refresh, 1000);
+  setInterval(render, 200);
+})();
+</script>
+</body>
+</html>

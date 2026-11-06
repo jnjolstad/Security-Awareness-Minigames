@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kill-Switch &middot; NIMBUS Secure Terminal</title>
+<link rel="stylesheet" href="assets/css/nimbus.css">
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><span class="logo"></span> NIMBUS <small>BLACKFROST CONSOLE</small></div>
+  <div class="spacer"></div>
+  <div class="kicker" style="margin-right:8px">DEPLOY IN</div>
+  <div class="clock" id="clock">--:--</div>
+</div>
+
+<div class="wrap">
+  <div class="panel" style="border-color:var(--bad)">
+    <h2 style="color:var(--bad)">&#9760; BLACKFROST &mdash; Ransomware Deployment Armed</h2>
+    <div class="sub">Complete the response steps, then enter the kill-switch code before the countdown ends.</div>
+
+    <!-- STEP 1: incident response -->
+    <div id="step1" style="margin-top:18px">
+      <div class="kicker">Step 1 &mdash; First response actions</div>
+      <p class="note">Select the correct first actions to <b>arm</b> the kill switch.</p>
+      <div id="checks"></div>
+      <button class="btn" id="arm">Arm kill switch</button>
+      <div class="msg" id="m1"></div>
+    </div>
+
+    <!-- STEP 2: the code -->
+    <div id="step2" class="hidden" style="margin-top:8px">
+      <div class="kicker">Step 2 &mdash; Three-fragment kill code</div>
+      <div class="grid cols-3" style="margin-top:8px">
+        <div><label for="id">Insider Contractor ID</label>
+          <input class="input" id="id" placeholder="e.g. 0000"></div>
+        <div><label for="bucket">Exfil Cloud Bucket #</label>
+          <input class="input" id="bucket" placeholder="e.g. 000"></div>
+        <div><label for="pass">Kill-Switch Passphrase</label>
+          <input class="input" id="pass" placeholder="word from the assistant"></div>
+      </div>
+      <button class="btn bad" id="fire" style="margin-top:14px">&#9889; EXECUTE KILL SWITCH</button>
+      <div class="msg" id="m2"></div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/state.js"></script>
+<script>
+  NST.requireAll(["assistant", "accuse"], "desktop.html");
+  NST.bindClock("clock");
+  var C = NIMBUS_CONFIG;
+
+  var actions = [
+    { t:"Isolate the affected systems",            ok:true },
+    { t:"Preserve evidence and logs",              ok:true },
+    { t:"Report to the Security/IR team & management", ok:true },
+    { t:"Pay the ransom immediately",              ok:false },
+    { t:"Shut everything down and tell no one",    ok:false },
+    { t:"Email all clients in a panic",            ok:false }
+  ];
+  var box = document.getElementById("checks");
+  actions.forEach(function (a, i) {
+    var l = document.createElement("label"); l.className = "check";
+    l.innerHTML = '<input type="checkbox" data-i="'+i+'"><span>'+NST.esc(a.t)+'</span>';
+    box.appendChild(l);
+  });
+
+  document.getElementById("arm").addEventListener("click", function () {
+    var picked = [].slice.call(box.querySelectorAll("input:checked")).map(function (c) { return +c.dataset.i; });
+    var anyWrong = picked.some(function (i) { return !actions[i].ok; });
+    var allRight = actions.every(function (a, i) { return !a.ok || picked.indexOf(i) > -1; });
+    if (anyWrong) { NST.show("m1","err","One of those actions would make things worse. Stay calm and responsible."); return; }
+    if (!allRight) { NST.show("m1","err","You're missing a key first step (contain \u2022 preserve \u2022 report)."); return; }
+    NST.show("m1","good","Response plan accepted. Kill switch ARMED.");
+    document.getElementById("step2").classList.remove("hidden");
+    document.getElementById("arm").setAttribute("disabled","disabled");
+  });
+
+  document.getElementById("fire").addEventListener("click", function () {
+    if (NST.remaining() <= 0) { location.href = "fail.html"; return; }
+    var id = NST.norm(document.getElementById("id").value);
+    var bk = NST.norm(document.getElementById("bucket").value);
+    var pw = NST.norm(document.getElementById("pass").value);
+    var idOK = id.indexOf(NST.norm(C.insiderShort)) > -1;
+    var bkOK = bk.indexOf(NST.norm(C.cloudBucketNum)) > -1;
+    var pwOK = pw === NST.norm(C.killPassphrase);
+    if (idOK && bkOK && pwOK) {
+      NST.set("winTime", NST.fmt(NST.remaining()));
+      NST.show("m2","good","Kill switch accepted. Neutralizing BLACKFROST&hellip;");
+      setTimeout(function () { location.href = "win.html"; }, 900);
+    } else {
+      var miss = [];
+      if (!idOK) miss.push("Insider ID");
+      if (!bkOK) miss.push("Bucket #");
+      if (!pwOK) miss.push("Passphrase");
+      NST.show("m2","err","Code rejected. Check: " + miss.join(", ") + ".");
+    }
+  });
+</script>
+</body>
+</html>

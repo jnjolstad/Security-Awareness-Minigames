@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Leaderboard · Mini-games</title>
+  <!-- link-preview -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Security Awareness Month">
+  <meta property="og:title" content="Leaderboard · Security Awareness Month mini-games">
+  <meta property="og:description" content="Who spots the most openings? Championship and per-game rankings.">
+  <meta property="og:url" content="https://www.njolstad.no/security-awareness-month/minigames/leaderboard/">
+  <meta property="og:image" content="https://www.njolstad.no/security-awareness-month/minigames/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#0b1118">
+  <link rel="icon" type="image/png" href="../icon.png">
+  <link rel="apple-touch-icon" href="../icon.png">
+  <!-- /link-preview -->
+  <link rel="stylesheet" href="../engine.css">
+  <script src="../catalog.js" defer></script>
+  <script src="../board.js" defer></script>
+  <script src="leaderboard.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../"><span class="brand-mark">SA</span> MINI-GAMES <small>/ SECURITY AWARENESS MONTH</small></a>
+    <a class="game-name" href="../">← ALL GAMES</a>
+  </header>
+  <main class="lb-page">
+    <p class="eyebrow">LEADERBOARD</p>
+    <h1 id="title">Championship</h1>
+    <p class="intro" id="sub"></p>
+    <div class="tabs-lb" role="tablist" id="tabs"></div>
+    <div class="card-lite" id="board"><p class="muted">Loading…</p></div>
+    <p class="hub-foot">Ranking: highest score, then fastest time, then whoever got there first. Championship = the sum of your best score on each game. Every run is timed and checked by the server. "1st try" is the score from your very first attempt: layouts and answer orders are shuffled each run, so replays can't be memorised, but practice still pays off.</p>
+        <p class="hub-foot">Openings are tagged with <a href="https://nsm.no/regelverk-og-hjelp/grunnprinsipper/" target="_blank" rel="noopener">NSM's basic principles for ICT security</a> where they fit. Made for <a href="https://norsis.no/nasjonal-sikkerhetsmaned/" target="_blank" rel="noopener">Nasjonal sikkerhetsmåned</a> (NorSIS). Not endorsed by NSM or NorSIS.</p>
+      </main>
+</body>
+</html>

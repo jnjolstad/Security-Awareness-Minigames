@@ -1,0 +1,59 @@
+.dt{position:absolute;inset:0;font:13px/1.4 "Segoe UI",Arial,sans-serif;color:#1b1b1b;background:
+  radial-gradient(ellipse at 70% 110%,#4f8fd1 0,transparent 55%),
+  radial-gradient(ellipse at 20% -10%,#1f3f73 0,transparent 60%),
+  linear-gradient(160deg,#0d2347,#1b4b8a 55%,#5b9bd5);overflow:hidden}
+.icons{position:absolute;left:12px;top:14px;display:flex;flex-direction:column;gap:14px;width:86px}
+.icon{display:flex;flex-direction:column;align-items:center;color:#fff;font-size:11.5px;text-align:center;text-shadow:0 1px 2px #000a;padding:4px}
+.ic{font-size:28px;line-height:1.1}
+.ic.txt{width:30px;height:36px;background:#fff;color:#666;border-radius:2px;font-size:20px;display:grid;place-items:center;text-shadow:none;margin-bottom:3px}
+.win{position:absolute;background:#fff;border-radius:8px;box-shadow:0 10px 30px #0007;overflow:hidden}
+.titlebar{display:flex;justify-content:space-between;align-items:center;background:#f3f3f3;padding:6px 12px;font-size:12px;border-bottom:1px solid #e3e3e3}
+.ctl{color:#555;letter-spacing:6px}
+.tab{background:#fff;border-radius:6px 6px 0 0;padding:3px 12px;margin-bottom:-7px}
+.browser{left:112px;top:16px;width:580px;height:388px}
+.urlbar{padding:6px 12px;background:#fff;border-bottom:1px solid #e3e3e3}
+.urlbar span{display:block;background:#f1f3f4;border-radius:14px;padding:3px 14px;color:#333}
+.chat{padding:12px 16px;display:flex;flex-direction:column;gap:10px;background:#fbfbfd;height:310px}
+.msg{max-width:84%;border-radius:12px;padding:8px 12px}
+.msg.bot{background:#ececf4}
+.msg.me{background:#d7e8ff;align-self:flex-end}
+.msg code{font-size:11.5px;line-height:1.5}
+.popup{position:absolute;right:16px;bottom:16px;width:270px;background:#fff;border:2px solid #d13438;border-radius:6px;padding:10px 14px;box-shadow:0 6px 18px #0005}
+.popup b{color:#a4262c}
+.popup p{margin:4px 0 8px;font-size:12px}
+.btn{display:inline-block;border:1px solid #c8c8c8;border-radius:4px;padding:4px 12px;background:#fff;font-size:12px}
+.btn.primary{background:#0f6cbd;border-color:#0f6cbd;color:#fff}
+.consent{left:712px;top:16px;width:372px;height:258px}
+.consent .inner{padding:12px 16px}
+.consent .app{display:flex;gap:10px;align-items:center}
+.consent .app small{display:block;color:#a4262c}
+.logo{width:36px;height:36px;background:#c4314b;color:#fff;border-radius:6px;display:grid;place-items:center;font-weight:700;font-size:11px}
+.consent p{margin:10px 0 4px}
+.consent ul{margin:0;padding-left:18px}
+.btns{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+.props{left:712px;top:290px;width:372px;height:168px}
+.props .inner{padding:10px 14px}
+.tabs{display:flex;gap:14px;border-bottom:1px solid #ddd;margin-bottom:8px}
+.tabs span{padding:3px 0;color:#666}
+.tabs .on{color:#0f6cbd;border-bottom:2px solid #0f6cbd}
+.perm{display:flex;justify-content:space-between;padding:4px 6px}
+.perm.head{color:#666;font-size:11.5px}
+.toast{position:absolute;background:#fbfbfb;border-radius:8px;box-shadow:0 8px 24px #0006;padding:10px 14px;font-size:12.5px}
+.toast p{margin:4px 0 8px}
+.th{color:#555;font-size:11.5px;margin-bottom:4px;display:flex;gap:6px;align-items:center}
+.tlogo{background:#5b5fc7;color:#fff;border-radius:3px;width:16px;height:16px;display:grid;place-items:center;font-size:10px;font-weight:700}
+.teams{left:112px;top:420px;width:340px}
+.teams em{color:#a4262c;font-style:normal}
+.autoplay{left:790px;top:474px;width:294px}
+.ap-row{display:flex;gap:10px;align-items:center;background:#eef3fa;border-radius:6px;padding:6px 10px}
+.ap-row small{display:block;color:#666}
+.ap-ic{color:#0f6cbd;font-size:18px}
+.taskbar{position:absolute;left:0;right:0;bottom:0;height:46px;background:#dfe6ef;display:flex;align-items:center;gap:6px;padding:0 10px;border-top:1px solid #c5ced9}
+.tb{padding:4px 10px;border-radius:5px;font-size:15px}
+.tb.winbtn{color:#0f6cbd;font-size:20px}
+.tb.tbsearch{background:#fff;font-size:12px;color:#666;width:180px;border-radius:14px}
+.teamsico{background:#5b5fc7;color:#fff;font-weight:700;font-size:13px;width:28px;height:28px;display:grid;place-items:center;padding:0}
+.tray{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px}
+.upd{background:#fff4ce;border:1px solid #e5c55a;border-radius:12px;padding:2px 10px;color:#6b4e00}
+.tri{padding:2px 4px}
+.clock{text-align:right;font-size:11.5px;line-height:1.25;padding:0 4px}

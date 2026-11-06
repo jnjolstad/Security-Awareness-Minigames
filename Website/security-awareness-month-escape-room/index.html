@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#071018">
+<title>BREACH PROTOCOL | Team Registration</title>
+<style>
+  :root {
+    --bg:#071018;
+    --panel:#0d1b26;
+    --panel-2:#102533;
+    --line:#294555;
+    --text:#eff8fb;
+    --muted:#9eb3be;
+    --cyan:#42d7f4;
+    --red:#f34d61;
+    --amber:#ffc15c;
+    --success:#61dfaa;
+  }
+  * { box-sizing:border-box; }
+  html { color-scheme:dark; }
+  body {
+    min-height:100vh;
+    margin:0;
+    color:var(--text);
+    background:
+      radial-gradient(circle at 86% 12%,rgba(66,215,244,.13),transparent 28rem),
+      radial-gradient(circle at 7% 88%,rgba(243,77,97,.1),transparent 30rem),
+      var(--bg);
+    font-family:Inter,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  body::before {
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    opacity:.13;
+    background:repeating-linear-gradient(0deg,transparent 0 5px,rgba(255,255,255,.055) 6px);
+    mask-image:linear-gradient(to bottom,transparent,#000 12%,#000 88%,transparent);
+  }
+  .shell { width:min(1160px,calc(100% - 32px)); margin:auto; }
+  header {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:20px;
+    padding:25px 0;
+  }
+  .brand { display:flex; align-items:center; gap:12px; font-weight:850; }
+  .mark {
+    width:38px;
+    height:38px;
+    display:grid;
+    place-items:center;
+    border-radius:11px;
+    background:linear-gradient(135deg,var(--cyan),#0a8cad);
+    color:#03232c;
+    font-size:21px;
+  }
+  .month {
+    color:var(--muted);
+    font-size:12px;
+    font-weight:750;
+    letter-spacing:.17em;
+    text-transform:uppercase;
+  }
+  main {
+    display:grid;
+    grid-template-columns:minmax(0,.9fr) minmax(420px,1.1fr);
+    align-items:start;
+    gap:clamp(36px,6vw,80px);
+    padding:48px 0 70px;
+  }
+  .eyebrow {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    color:var(--cyan);
+    font-size:13px;
+    font-weight:850;
+    letter-spacing:.17em;
+    text-transform:uppercase;
+  }
+  .pulse {
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:var(--red);
+    box-shadow:0 0 0 7px rgba(243,77,97,.12);
+  }
+  h1 {
+    margin:21px 0 0;
+    font-size:clamp(55px,7vw,91px);
+    line-height:.88;
+    letter-spacing:-.065em;
+  }
+  h1 span { display:block; color:var(--red); }
+  .lead {
+    margin:27px 0 0;
+    color:#c8d7de;
+    font-size:20px;
+    line-height:1.55;
+  }
+  .mission {
+    margin:24px 0 0;
+    padding-left:17px;
+    border-left:3px solid var(--cyan);
+    color:var(--muted);
+    font-size:15px;
+    line-height:1.55;
+  }
+  .facts {
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:9px;
+    margin-top:30px;
+  }
+  .fact {
+    padding:14px 10px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:rgba(13,27,38,.78);
+    text-align:center;
+  }
+  .fact strong { display:block; color:var(--amber); font-size:16px; }
+  .fact span { color:var(--muted); font-size:11px; }
+  .card {
+    position:relative;
+    padding:28px;
+    border:1px solid #355364;
+    border-radius:20px;
+    background:linear-gradient(155deg,rgba(17,39,53,.97),rgba(8,17,24,.99));
+    box-shadow:0 28px 75px rgba(0,0,0,.38);
+  }
+  .card h2 { margin:0; font-size:29px; letter-spacing:-.03em; }
+  .card > p { margin:7px 0 22px; color:var(--muted); font-size:14px; line-height:1.5; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:15px; }
+  .field { display:flex; flex-direction:column; gap:7px; }
+  .field.full { grid-column:1/-1; }
+  label { color:#dce9ef; font-size:12px; font-weight:800; }
+  label span { color:var(--red); }
+  input,select,textarea {
+    width:100%;
+    border:1px solid var(--line);
+    border-radius:9px;
+    outline:0;
+    background:#07141d;
+    color:var(--text);
+    padding:12px 13px;
+    font:inherit;
+    font-size:14px;
+  }
+  textarea { min-height:82px; resize:vertical; }
+  input:focus,select:focus,textarea:focus {
+    border-color:var(--cyan);
+    box-shadow:0 0 0 3px rgba(66,215,244,.12);
+  }
+  .privacy {
+    margin:18px 0 0;
+    padding:11px 13px;
+    border-radius:8px;
+    background:rgba(66,215,244,.07);
+    color:var(--muted);
+    font-size:12px;
+    line-height:1.45;
+  }
+  button {
+    width:100%;
+    margin-top:17px;
+    padding:14px 18px;
+    border:0;
+    border-radius:9px;
+    background:var(--cyan);
+    color:#03232c;
+    font:850 15px/1 inherit;
+    cursor:pointer;
+  }
+  button:hover { background:#72e5fa; }
+  .success {
+    display:none;
+    margin-top:15px;
+    color:var(--success);
+    font-size:13px;
+    line-height:1.5;
+  }
+  footer {
+    display:flex;
+    justify-content:space-between;
+    gap:20px;
+    padding:21px 0 28px;
+    border-top:1px solid rgba(41,69,85,.7);
+    color:var(--muted);
+    font-size:12px;
+  }
+  footer strong { color:#dce8ed; }
+  @media (max-width:900px) {
+    main { grid-template-columns:1fr; padding-top:25px; }
+  }
+  @media (max-width:560px) {
+    .shell { width:min(100% - 22px,1160px); }
+    .month { display:none; }
+    main { gap:34px; }
+    .facts,.grid { grid-template-columns:1fr; }
+    .field.full { grid-column:auto; }
+    .card { padding:21px 17px; }
+    footer { flex-direction:column; }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    * { scroll-behavior:auto !important; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="brand"><span class="mark" aria-hidden="true">◈</span><span>Security Team</span></div>
+    <div class="month">Security Awareness Month</div>
+  </header>
+
+  <main>
+    <section>
+      <div class="eyebrow"><span class="pulse"></span> Team registration is open</div>
+      <h1>BREACH <span>PROTOCOL</span></h1>
+      <p class="lead">A security analyst has disappeared. Confidential data is at risk. Your team has 45 minutes to follow the evidence, expose the insider, and stop BLACKFROST.</p>
+      <p class="mission">No cybersecurity background is required. Bring curiosity, teamwork, and a healthy distrust of anything that looks too obvious.</p>
+      <div class="facts" aria-label="Experience details">
+        <div class="fact"><strong>45 min</strong><span>mission time</span></div>
+        <div class="fact"><strong>3–6</strong><span>players per team</span></div>
+        <div class="fact"><strong>All levels</strong><span>no technical skills needed</span></div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="register-title">
+      <h2 id="register-title">Register your response team</h2>
+      <p>Choose one team captain. Session availability will be confirmed by email.</p>
+      <form id="registrationForm">
+        <div class="grid">
+          <div class="field">
+            <label for="teamName">Team name <span>*</span></label>
+            <input id="teamName" name="teamName" autocomplete="organization" required maxlength="80">
+          </div>
+          <div class="field">
+            <label for="teamSize">Number of players <span>*</span></label>
+            <select id="teamSize" name="teamSize" required>
+              <option value="">Select</option>
+              <option>3</option><option>4</option><option>5</option><option>6</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="captain">Team captain <span>*</span></label>
+            <input id="captain" name="captain" autocomplete="name" required maxlength="100">
+          </div>
+          <div class="field">
+            <label for="email">Work email <span>*</span></label>
+            <input id="email" name="email" type="email" autocomplete="email" required maxlength="160">
+          </div>
+          <div class="field full">
+            <label for="members">Team members</label>
+            <input id="members" name="members" placeholder="Names or work email addresses" maxlength="400">
+          </div>
+          <div class="field">
+            <label for="preferred">Preferred session <span>*</span></label>
+            <input id="preferred" name="preferred" placeholder="Date and time" required maxlength="100">
+          </div>
+          <div class="field">
+            <label for="alternative">Alternative session</label>
+            <input id="alternative" name="alternative" placeholder="Date and time" maxlength="100">
+          </div>
+          <div class="field full">
+            <label for="notes">Accessibility needs or notes</label>
+            <textarea id="notes" name="notes" maxlength="600"></textarea>
+          </div>
+        </div>
+        <div class="privacy">This page does not store or send information to a third-party service. It opens your email application with the registration details prepared for you to review and send.</div>
+        <button type="submit">Prepare registration email</button>
+        <div class="success" id="success" role="status">Your email application should now open. Review the details and press Send to complete the registration.</div>
+      </form>
+    </section>
+  </main>
+
+  <footer>
+    <strong>Trust nothing. Verify everything. Beat the clock.</strong>
+    <span>Security Awareness Month · BREACH PROTOCOL</span>
+  </footer>
+</div>
+
+<script>
+  const registrationEmail = "joar@njolstad.no";
+
+  document.getElementById("registrationForm").addEventListener("submit", function (event) {
+    event.preventDefault();
+    if (!this.reportValidity()) return;
+
+    const data = new FormData(this);
+    const lines = [
+      "BREACH PROTOCOL — TEAM REGISTRATION",
+      "",
+      `Team name: ${data.get("teamName")}`,
+      `Number of players: ${data.get("teamSize")}`,
+      `Team captain: ${data.get("captain")}`,
+      `Work email: ${data.get("email")}`,
+      `Team members: ${data.get("members") || "Not provided"}`,
+      `Preferred session: ${data.get("preferred")}`,
+      `Alternative session: ${data.get("alternative") || "Not provided"}`,
+      `Accessibility needs / notes: ${data.get("notes") || "None"}`
+    ];
+    const subject = `BREACH PROTOCOL registration — ${data.get("teamName")}`;
+    const mailto = `mailto:${registrationEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n"))}`;
+
+    document.getElementById("success").style.display = "block";
+    window.location.href = mailto;
+  });
+</script>
+</body>
+</html>

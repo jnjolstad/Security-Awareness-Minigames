@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C3 — Network Diagram Poster</title>
+<link rel="stylesheet" href="assets/print.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <div>
+    <h1><span class="tag">C3 · PUZZLE 6</span> Network diagram poster</h1>
+    <p><b>Print:</b> 1 × colour, A4. <b>Place:</b> on the SOC wall, next to the Wi-Fi survey (C4). <b>Role:</b>
+       establishes the only two <i>approved</i> SSIDs so the look-alike <b>NIMBUS_5ecure</b> stands out as an evil twin.</p>
+  </div>
+  <button class="printbtn" onclick="window.print()">Print</button>
+</div>
+
+<div class="sheet poster">
+  <div class="phead">
+    <div class="brand"><span class="logo"></span>
+      <div><div class="name" style="color:#fff">NIMBUS Cloud Solutions</div>
+      <div class="motto" style="color:#cfeefb">Security Operations Center</div></div></div>
+    <div class="kicker">Wireless · Network Map</div>
+    <h2>NIMBUS Network Map</h2>
+  </div>
+
+  <!-- simple diagram -->
+  <div style="display:flex;align-items:center;justify-content:center;gap:0;margin:6mm 0 10mm;font-size:13px">
+    <div style="text-align:center">
+      <div style="width:46mm;padding:10px;border:2px solid var(--brand);border-radius:8px;background:var(--soft)">
+        🌐 <b>Internet</b></div></div>
+    <div style="width:24mm;height:2px;background:var(--brand)"></div>
+    <div style="text-align:center">
+      <div style="width:46mm;padding:10px;border:2px solid var(--brand);border-radius:8px;background:var(--soft)">
+        🧱 <b>Firewall / Core</b></div></div>
+  </div>
+
+  <div style="display:flex;gap:14mm;justify-content:center;margin-bottom:8mm">
+    <div style="text-align:center">
+      <div style="width:60mm;padding:14px;border:2px solid var(--ok);border-radius:10px">
+        📶 <b style="font-size:18px">NIMBUS_Secure</b><br><small>Staff network · WPA2-Enterprise</small></div></div>
+    <div style="text-align:center">
+      <div style="width:60mm;padding:14px;border:2px solid var(--amber);border-radius:10px">
+        📶 <b style="font-size:18px">NIMBUS_Guest</b><br><small>Visitors · isolated</small></div></div>
+  </div>
+
+  <div class="note-box" style="border-left-color:var(--warn);font-size:17px">
+    <b>APPROVED NIMBUS NETWORKS:</b> <span class="mono">NIMBUS_Secure</span> (staff) ·
+    <span class="mono">NIMBUS_Guest</span> (visitors).<br>
+    ⚠️ <b>Any unapproved NIMBUS or look-alike SSID is suspicious.</b> An <u>evil twin</u> copies an
+    approved name with a tiny change (a swapped letter or number) to trick you into connecting.
+  </div>
+
+  <div class="foot"><span>NIMBUS Cloud Solutions · SOC</span><span>NET-MAP-01 · review weekly</span></div>
+</div>
+
+</body>
+</html>

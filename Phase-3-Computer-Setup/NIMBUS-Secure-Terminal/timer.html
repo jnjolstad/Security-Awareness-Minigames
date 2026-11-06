@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05080c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="screen-orientation" content="landscape">
+<title>BLACKFROST Room Timer</title>
+<style>
+  :root {
+    --bg:#05080c; --panel:#0d151d; --line:#253543; --text:#eff5f8;
+    --muted:#8fa2b1; --cyan:#39d3f2; --amber:#ffb347; --red:#e13e51;
+  }
+  * { box-sizing:border-box; }
+  html,body { width:100%; min-height:100%; margin:0; background:var(--bg); color:var(--text);
+    font-family:Inter,"Segoe UI",Arial,sans-serif; touch-action:manipulation;
+    overscroll-behavior:none; user-select:none; -webkit-user-select:none; }
+  button,input { font:inherit; }
+  .app {
+    min-height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:clamp(14px,2.8vh,34px); padding:max(20px,env(safe-area-inset-top))
+    max(20px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom))
+    max(20px,env(safe-area-inset-left)); text-align:center; overflow:hidden;
+    background:
+      radial-gradient(circle at 50% 45%,rgba(225,62,81,.13),transparent 40%),
+      repeating-linear-gradient(0deg,transparent 0 4px,rgba(255,255,255,.018) 5px);
+  }
+  .eyebrow { color:var(--red); font-size:clamp(15px,2.2vw,30px); font-weight:800;
+    letter-spacing:.34em; text-transform:uppercase; }
+  .clock { color:var(--text); font:800 clamp(92px,25vw,330px)/.82 ui-monospace,SFMono-Regular,Consolas,monospace;
+    letter-spacing:-.085em; margin-left:-.085em; font-variant-numeric:tabular-nums;
+    text-shadow:0 0 48px rgba(255,255,255,.1); }
+  .clock.warning { color:var(--amber); }
+  .clock.critical { color:var(--red); animation:pulse 1s infinite; text-shadow:0 0 55px rgba(225,62,81,.35); }
+  .status { min-height:1.5em; color:var(--muted); font-size:clamp(15px,2.3vw,29px);
+    font-weight:700; letter-spacing:.13em; text-transform:uppercase; }
+  .start { min-width:min(420px,86vw); min-height:72px; border:1px solid #bd3546; border-radius:14px;
+    background:linear-gradient(180deg,#d33a4d,#a52234); color:#fff; font-weight:850;
+    font-size:clamp(20px,3vw,32px); letter-spacing:.08em; text-transform:uppercase;
+    box-shadow:0 14px 40px rgba(225,62,81,.2); }
+  .controls {
+    position:fixed; z-index:4; left:50%; bottom:max(16px,env(safe-area-inset-bottom)); transform:translateX(-50%);
+    display:flex; flex-wrap:wrap; justify-content:center; gap:9px; width:min(760px,calc(100% - 24px));
+    padding:10px; border:1px solid var(--line); border-radius:14px; background:rgba(9,16,23,.96);
+    box-shadow:0 14px 40px rgba(0,0,0,.5); transition:opacity .2s,transform .2s;
+  }
+  .controls.hidden { opacity:0; pointer-events:none; transform:translate(-50%,18px); }
+  .controls button { flex:1 1 112px; min-height:52px; padding:10px 15px; border:1px solid #385064;
+    border-radius:9px; background:#142430; color:var(--text); font-weight:750; }
+  .controls button:active { background:#1d3444; transform:translateY(1px); }
+  .controls .reset { border-color:#71313b; }
+  .setup { display:flex; align-items:center; gap:10px; color:var(--muted); font-weight:700; }
+  .setup input { width:88px; padding:10px; border:1px solid var(--line); border-radius:8px;
+    background:var(--panel); color:var(--text); text-align:center; font-size:20px; }
+  .hint { position:fixed; top:max(10px,env(safe-area-inset-top)); right:14px; color:#516574;
+    font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+  .device-note { color:#5f7483; font-size:13px; }
+  .wake-warning { position:fixed; top:max(10px,env(safe-area-inset-top)); left:14px; color:var(--amber);
+    font-size:12px; font-weight:750; letter-spacing:.04em; }
+  .hidden { display:none; }
+  @keyframes pulse { 50% { opacity:.7; } }
+  @media (orientation:portrait) {
+    .clock { font-size:clamp(84px,28vw,230px); }
+    .eyebrow { letter-spacing:.22em; }
+  }
+</style>
+</head>
+<body>
+<main class="app" id="app">
+  <div class="eyebrow">Blackfrost Deployment In</div>
+  <div class="clock" id="clock" aria-live="polite">45:00</div>
+  <div class="status" id="status">Ready for mission</div>
+  <div class="setup" id="setup">
+    <label for="minutes">Mission length</label>
+    <input id="minutes" type="number" min="1" max="180" inputmode="numeric" value="45">
+    <span>minutes</span>
+  </div>
+  <div class="device-note" id="deviceNote">Android Chrome will request fullscreen and keep the screen awake.</div>
+  <button class="start" id="startButton" type="button">Start Mission</button>
+</main>
+
+<div class="hint">Tap clock to show controls</div>
+<div class="wake-warning hidden" id="wakeWarning">Set Android screen timeout to Never for this session.</div>
+<nav class="controls hidden" id="controls" aria-label="Timer controls">
+  <button id="pauseButton" type="button">Pause</button>
+  <button id="minusButton" type="button">-1 min</button>
+  <button id="plusButton" type="button">+1 min</button>
+  <button id="fullscreenButton" type="button">Fullscreen</button>
+  <button class="reset" id="resetButton" type="button">Reset</button>
+</nav>
+
+<script>
+  (function () {
+    "use strict";
+
+    var STORAGE_KEY = "blackfrost-room-timer-v1";
+    var clock = document.getElementById("clock");
+    var status = document.getElementById("status");
+    var controls = document.getElementById("controls");
+    var setup = document.getElementById("setup");
+    var deviceNote = document.getElementById("deviceNote");
+    var wakeWarning = document.getElementById("wakeWarning");
+    var minutesInput = document.getElementById("minutes");
+    var startButton = document.getElementById("startButton");
+    var pauseButton = document.getElementById("pauseButton");
+    var wakeLock = null;
+    var state = load() || { mode:"ready", duration:45 * 60000, remaining:45 * 60000, end:0 };
+
+    function load() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch (error) { return null; }
+    }
+    function save() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (error) {}
+    }
+    function remaining() {
+      return state.mode === "running" ? Math.max(0, state.end - Date.now()) : state.remaining;
+    }
+    function setRemaining(value) {
+      state.remaining = Math.max(0, value);
+      if (state.mode === "running") {
+        state.end = Date.now() + state.remaining;
+      } else if (state.mode === "finished" && state.remaining > 0) {
+        state.mode = "running";
+        state.end = Date.now() + state.remaining;
+        requestWakeLock();
+      }
+      save();
+    }
+    function format(ms) {
+      var seconds = Math.ceil(Math.max(0, ms) / 1000);
+      var mins = Math.floor(seconds / 60);
+      var secs = seconds % 60;
+      return String(mins).padStart(2,"0") + ":" + String(secs).padStart(2,"0");
+    }
+    function render() {
+      var left = remaining();
+      if (state.mode === "running" && left === 0) {
+        state.mode = "finished";
+        state.remaining = 0;
+        save();
+      }
+      clock.textContent = format(left);
+      clock.classList.toggle("warning", state.mode !== "ready" && left <= 15 * 60000 && left > 5 * 60000);
+      clock.classList.toggle("critical", state.mode !== "ready" && left <= 5 * 60000);
+      setup.classList.toggle("hidden", state.mode !== "ready");
+      deviceNote.classList.toggle("hidden", state.mode !== "ready");
+      startButton.classList.toggle("hidden", state.mode !== "ready");
+      pauseButton.textContent = state.mode === "paused" ? "Resume" : "Pause";
+
+      if (state.mode === "ready") status.textContent = "Ready for mission";
+      else if (state.mode === "paused") status.textContent = "Mission paused";
+      else if (state.mode === "finished") status.textContent = "Blackfrost deployed";
+      else status.textContent = "Find the insider · Stop the breach";
+    }
+    function start() {
+      var minutes = Math.max(1, Math.min(180, parseInt(minutesInput.value,10) || 45));
+      state = { mode:"running", duration:minutes * 60000, remaining:minutes * 60000,
+        end:Date.now() + minutes * 60000 };
+      save();
+      controls.classList.add("hidden");
+      render();
+      requestFullscreen();
+      requestWakeLock();
+    }
+    function showFullscreenWarning() {
+      wakeWarning.textContent = "Use Chrome menu → Add to Home screen for full-screen display.";
+      wakeWarning.classList.remove("hidden");
+    }
+    function requestFullscreen() {
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().then(lockLandscape, showFullscreenWarning);
+      } else if (!document.fullscreenElement) {
+        showFullscreenWarning();
+      }
+    }
+    function lockLandscape() {
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock("landscape").catch(function () {
+          wakeWarning.textContent = "Rotate the tablet to landscape and enable rotation lock.";
+          wakeWarning.classList.remove("hidden");
+        });
+      }
+    }
+    function requestWakeLock() {
+      if (!("wakeLock" in navigator)) {
+        wakeWarning.textContent = "Set Android screen timeout to Never for this session.";
+        wakeWarning.classList.remove("hidden");
+        return;
+      }
+      navigator.wakeLock.request("screen").then(function (lock) {
+        wakeLock = lock;
+        wakeWarning.classList.add("hidden");
+        lock.addEventListener("release", function () { wakeLock = null; });
+      }).catch(function () {
+        wakeWarning.textContent = "Chrome blocked screen wake. Set Android screen timeout to Never.";
+        wakeWarning.classList.remove("hidden");
+      });
+    }
+    function toggleFullscreen() {
+      if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+      else requestFullscreen();
+    }
+    function togglePause() {
+      if (state.mode === "running") {
+        state.remaining = remaining();
+        state.mode = "paused";
+      } else if (state.mode === "paused") {
+        state.end = Date.now() + state.remaining;
+        state.mode = "running";
+      }
+      save();
+      render();
+    }
+    function reset() {
+      if (!confirm("Reset the room timer?")) return;
+      var duration = state.duration || 45 * 60000;
+      state = { mode:"ready", duration:duration, remaining:duration, end:0 };
+      minutesInput.value = Math.round(duration / 60000);
+      save();
+      controls.classList.add("hidden");
+      render();
+    }
+
+    startButton.addEventListener("click", start);
+    clock.addEventListener("click", function () {
+      if (state.mode !== "ready") controls.classList.toggle("hidden");
+    });
+    pauseButton.addEventListener("click", togglePause);
+    document.getElementById("minusButton").addEventListener("click", function () { setRemaining(remaining() - 60000); render(); });
+    document.getElementById("plusButton").addEventListener("click", function () { setRemaining(remaining() + 60000); render(); });
+    document.getElementById("fullscreenButton").addEventListener("click", toggleFullscreen);
+    document.getElementById("resetButton").addEventListener("click", reset);
+    document.addEventListener("visibilitychange", function () {
+      render();
+      if (document.visibilityState === "visible" && state.mode === "running" && !wakeLock) requestWakeLock();
+    });
+
+    minutesInput.value = Math.round(state.duration / 60000);
+    render();
+    setInterval(render, 250);
+  })();
+</script>
+</body>
+</html>

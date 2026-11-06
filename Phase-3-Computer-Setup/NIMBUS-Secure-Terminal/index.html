@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NIMBUS Secure Terminal</title>
+<link rel="stylesheet" href="assets/css/nimbus.css">
+</head>
+<body>
+<div class="center">
+  <div class="panel auth">
+    <div class="logo-xl"></div>
+    <h1>NIMBUS Secure Terminal</h1>
+    <div class="sub">INITIALIZING SECURE SESSION&hellip;</div>
+    <p class="note mono" id="boot">connecting&hellip;</p>
+  </div>
+</div>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/state.js"></script>
+<script>
+  // The host starts the countdown from the login screen.
+  var steps = ["boot secure channel","loading kiosk profile","verifying terminal","awaiting operator"];
+  var i = 0, el = document.getElementById("boot");
+  var iv = setInterval(function(){
+    el.textContent = "> " + steps[i++ % steps.length];
+    if (i >= steps.length) {
+      clearInterval(iv);
+      // Resume where the team left off (within a session), else login.
+      var dest = "login.html";
+      if (NST.has("assistant")) dest = "killswitch.html";
+      else if (NST.has("mfa")) dest = "desktop.html";
+      setTimeout(function(){ location.replace(dest); }, 450);
+    }
+  }, 350);
+</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+.infra{height:800px;background:#f4f7fb;color:#24354a;font-family:"Segoe UI",Arial,sans-serif;padding:0 18px;font-size:13px;line-height:1.25}
+.document-bar{height:36px;margin:0 -18px;padding:0 18px;background:#18314a;color:#fff;display:flex;align-items:center;justify-content:space-between;font-size:11px}
+.live-row{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:9px;padding:8px 0 6px}
+.tile{background:#fff;border:1px solid #c9d8e6;border-radius:7px;padding:7px 9px}
+.tile small{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;color:#3d6287;margin-bottom:5px}
+.tile .line{font-size:11px;padding:3px 0;border-top:1px dashed #dce6f0}
+.tile .line:first-of-type{border-top:0;padding-top:0}
+.tile.policy{background:#fff8e8;border-color:#e0bc67}
+.tile.policy p{margin:0;font-size:11px}
+.share-row{display:flex;align-items:center;justify-content:space-between;padding:0 0 6px}
+.share-row h2{margin:0;font-size:19px}
+.share-options{display:flex;gap:10px;width:66%}
+.share-option{flex:1;border:1px solid #d3dde8;border-radius:6px;background:#fff;padding:5px 8px;font-size:11px}
+.share-option b{display:block;font-size:11px}
+.share-option small{display:block;color:#445a72;margin-top:1px}
+.share-option.safe{border-color:#7ec29f;background:#eefbf4}
+.doc-title{display:flex;align-items:center;justify-content:space-between;padding:0 0 6px}
+.doc-title h2{margin:0;font-size:20px}
+.doc-title span{font-size:11px;color:#76603a}
+.doc-title>b{background:#fff4d6;border:1px solid #d7b55e;border-radius:4px;padding:5px 7px;font-size:9px;letter-spacing:.04em}
+.flow{display:flex;align-items:center;justify-content:space-between;margin:0 8px 6px;font-size:9px;font-weight:700;color:#456586}
+.flow span:not(:last-child)::after{content:" →";padding-left:20px;color:#6a88a6}
+.nodes{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.node,.op{border:1px solid #a9bfd4;border-radius:7px;background:#fff;padding:8px}
+.node{height:175px}
+.node h3,.op h3{font-size:13px;margin:0 0 6px;color:#214f7a}
+.datum{border:1px solid #d2dce7;border-radius:5px;background:#f6f8fb;padding:6px 8px;margin:4px 0;font-size:11px;min-height:45px}
+.datum small{display:block;font-size:9px;margin-top:2px;color:#43576f;overflow-wrap:anywhere}
+.operations{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:8px}
+.op{height:146px}
+.document-foot{font-size:9px;color:#52687d;padding-top:6px}

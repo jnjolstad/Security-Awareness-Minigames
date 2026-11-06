@@ -1,0 +1,199 @@
+/* ============================================================
+   BREACH PROTOCOL — shared PRINT stylesheet for all artifacts
+   Light, professional "real office document" look (saves ink,
+   reads as authentic). Each artifact links this file.
+
+   Screen  = shows pages as white sheets on grey, with a Print bar.
+   Print   = clean A4, exact colors, page breaks between sheets.
+   ============================================================ */
+
+:root{
+  --brand:#0b6e99;      /* NIMBUS deep teal   */
+  --brand-dark:#084c6b;
+  --accent:#13a3c7;     /* NIMBUS cyan        */
+  --ink:#16222c;
+  --muted:#5b6b78;
+  --paper:#ffffff;
+  --line:#cfd9e0;
+  --soft:#f3f8fb;
+  --warn:#c0392b;       /* red / confidential */
+  --ok:#1e8449;         /* green / public     */
+  --amber:#b9770e;      /* amber / internal   */
+  --yellow:#fff27a;     /* sticky note        */
+}
+
+*{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; color:var(--ink);
+  font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+.mono{ font-family:ui-monospace,"Cascadia Mono",Consolas,"Courier New",monospace; }
+.hand{ font-family:"Segoe Print","Comic Sans MS","Bradley Hand",cursive; }
+
+/* ---------- screen vs print frame ---------- */
+@media screen{
+  body{ background:#3a4654; padding:26px 12px; display:flex; flex-direction:column;
+        align-items:center; gap:26px; }
+  .sheet{ box-shadow:0 10px 34px rgba(0,0,0,.45); }
+  .toolbar{ position:sticky; top:0; z-index:50; width:210mm; max-width:96vw;
+    background:#11181f; color:#e8eef3; border:1px solid #2b3947; border-radius:10px;
+    padding:12px 16px; display:flex; gap:14px; align-items:flex-start; }
+  .toolbar h1{ font-size:15px; margin:0 0 3px; color:#fff; }
+  .toolbar p{ margin:0; font-size:12.5px; color:#9fb1c0; line-height:1.45; }
+  .toolbar .tag{ display:inline-block; font-size:11px; font-weight:700; letter-spacing:.5px;
+    background:var(--accent); color:#04222c; padding:2px 8px; border-radius:999px; margin-right:6px; }
+  .printbtn{ margin-left:auto; white-space:nowrap; background:var(--accent); color:#03222c;
+    border:0; font-weight:800; font-size:13px; padding:10px 16px; border-radius:8px; cursor:pointer; }
+  .printbtn:hover{ background:#27b6d8; }
+}
+@media print{
+  body{ background:#fff; }
+  .toolbar{ display:none !important; }
+  .sheet{ box-shadow:none !important; }
+  .print-hide{ display:none !important; }
+}
+@page{ size:A4; margin:0; }
+
+/* ---------- the printable page ---------- */
+.sheet{
+  width:210mm; min-height:297mm; padding:18mm 16mm; background:var(--paper);
+  position:relative; overflow:hidden; page-break-after:always;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact;
+}
+.sheet.landscape{ width:297mm; min-height:210mm; }
+.sheet:last-child{ page-break-after:auto; }
+
+/* ---------- NIMBUS letterhead / brand ---------- */
+.brand{ display:flex; align-items:center; gap:12px; }
+.brand .logo{ width:42px; height:42px; flex:0 0 42px; border-radius:10px;
+  background:linear-gradient(135deg,var(--accent),var(--brand)); position:relative; }
+.brand .logo::after{ content:"\2601"; position:absolute; inset:0; display:flex;
+  align-items:center; justify-content:center; color:#fff; font-size:24px; }
+.brand .name{ font-weight:800; font-size:20px; color:var(--brand-dark); letter-spacing:.3px; }
+.brand .motto{ font-size:11px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; }
+.letterhead{ border-bottom:3px solid var(--brand); padding-bottom:12px; margin-bottom:22px;
+  display:flex; justify-content:space-between; align-items:flex-end; gap:16px; }
+.letterhead .meta{ text-align:right; font-size:11px; color:var(--muted); line-height:1.5; }
+
+.foot{ position:absolute; left:16mm; right:16mm; bottom:12mm; border-top:1px solid var(--line);
+  padding-top:8px; font-size:10px; color:var(--muted); display:flex; justify-content:space-between; }
+
+/* ---------- generic blocks ---------- */
+h2.title{ font-size:30px; margin:0 0 4px; color:var(--brand-dark); letter-spacing:.5px; }
+.sub{ color:var(--muted); font-size:13px; margin:0 0 18px; }
+.rule{ height:1px; background:var(--line); margin:16px 0; border:0; }
+p{ line-height:1.55; font-size:13.5px; }
+
+/* tables */
+table.doc{ width:100%; border-collapse:collapse; font-size:12.5px; }
+table.doc th,table.doc td{ border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top; }
+table.doc thead th{ background:var(--brand); color:#fff; font-weight:700; letter-spacing:.3px; }
+table.doc tbody tr:nth-child(even){ background:var(--soft); }
+table.doc .flag{ background:#fdecea; }
+.badgeword{ font-weight:800; }
+
+/* monospace evidence block */
+.code{ background:#0f1a22; color:#d7f3ff; border-radius:8px; padding:14px 16px;
+  font-size:12.5px; line-height:1.6; white-space:pre-wrap; }
+.code .hi{ color:#ffd36e; font-weight:700; }
+
+/* callout / stamp */
+.stamp{ position:absolute; top:30mm; right:14mm; transform:rotate(9deg);
+  border:3px solid var(--warn); color:var(--warn); font-weight:800; letter-spacing:2px;
+  padding:6px 14px; border-radius:6px; font-size:18px; opacity:.85; }
+.note-box{ border:1px solid var(--line); border-left:5px solid var(--accent);
+  background:var(--soft); padding:12px 14px; border-radius:6px; font-size:13px; }
+
+/* ---------- POSTER layout ---------- */
+.poster .phead{ background:var(--brand); color:#fff; margin:-18mm -16mm 18mm; padding:22mm 16mm 14mm; }
+.poster .phead h2{ font-size:40px; margin:8px 0 0; letter-spacing:1px; }
+.poster .phead .kicker{ font-size:13px; letter-spacing:4px; text-transform:uppercase; opacity:.85; }
+.poster ol.rules,.poster ul.rules{ font-size:20px; line-height:1.7; padding-left:1.1em; }
+.poster .big{ font-size:24px; font-weight:800; }
+.poster .flagline{ font-size:20px; color:var(--warn); font-weight:800; margin-top:10px; }
+
+/* ---------- CUT-OUT grids (labels, cards, badges) ---------- */
+.cutgrid{ display:flex; flex-wrap:wrap; gap:10mm; }
+.cut{ border:1px dashed #9aa7b2; border-radius:8px; position:relative; }
+.cut::before{ content:"\2702"; position:absolute; top:-9px; left:-6px; font-size:13px; color:#9aa7b2; }
+
+/* sticky note */
+.sticky{ width:78mm; height:78mm; background:var(--yellow); padding:12mm 10mm;
+  box-shadow:2px 4px 8px rgba(0,0,0,.18); transform:rotate(-2deg);
+  font-size:20px; line-height:1.5; }
+.sticky.small{ width:64mm; height:64mm; font-size:17px; }
+
+/* desk nameplate */
+.nameplate{ width:150mm; height:34mm; background:linear-gradient(180deg,#1b2a36,#0e1922);
+  color:#e9f4fa; display:flex; align-items:center; justify-content:center; gap:14px;
+  border-radius:6px; letter-spacing:6px; font-weight:800; font-size:30px; }
+.nameplate small{ font-size:11px; letter-spacing:3px; color:var(--accent); font-weight:700; }
+
+/* dot-object label */
+.dotlabel{ width:64mm; height:30mm; padding:6mm 8mm; display:flex; align-items:center; gap:10px;
+  font-size:16px; font-weight:700; }
+.dot{ width:18px; height:18px; border-radius:50%; flex:0 0 18px; border:1px solid rgba(0,0,0,.25); }
+.dot.red{ background:#e23b3b } .dot.green{ background:#33aa55 }
+.dot.blue{ background:#2f7bd6 } .dot.yellow{ background:#f2c233 }
+.dotlabel .ord{ margin-left:auto; color:var(--muted); font-weight:800; }
+
+/* USB / drive label */
+.usblabel{ width:62mm; height:20mm; background:#11181f; color:#cfeefb; border-radius:4px;
+  display:flex; align-items:center; justify-content:center; gap:8px; font-weight:800;
+  letter-spacing:2px; font-size:14px; }
+
+/* authenticator token */
+.token{ width:92mm; padding:10mm; background:linear-gradient(160deg,#10212c,#0a161e);
+  color:#dff3fb; border-radius:14px; box-shadow:inset 0 0 0 1px #1d3441; }
+.token .label{ font-size:11px; letter-spacing:3px; color:var(--accent); text-transform:uppercase; }
+.token .user{ font-size:14px; color:#9fc7d6; margin:2px 0 10px; }
+.token .code{ font-size:40px; font-weight:800; letter-spacing:10px; color:#fff; text-align:center; }
+.token .bar{ height:8px; border-radius:4px; margin-top:12px;
+  background:linear-gradient(90deg,var(--accent) 70%,#1d3441 70%); }
+.token .ref{ text-align:center; font-size:11px; color:#7fa6b6; margin-top:6px; }
+
+/* envelope */
+.envelope{ width:170mm; border:2px solid var(--ink); border-radius:6px; padding:14mm; text-align:center; }
+.envelope .seal{ display:inline-block; border:2px dashed var(--warn); color:var(--warn);
+  font-weight:800; letter-spacing:2px; padding:6px 14px; border-radius:6px; margin-top:8px; }
+
+/* ID badge */
+.badge{ width:86mm; height:54mm; border-radius:10px; overflow:hidden; background:#fff;
+  border:1px solid var(--line); box-shadow:0 1px 0 var(--line); display:flex; flex-direction:column; }
+.badge .band{ height:14mm; background:var(--brand); color:#fff; display:flex; align-items:center;
+  padding:0 8mm; font-weight:800; letter-spacing:1px; gap:8px; font-size:13px; }
+.badge .body{ display:flex; gap:8mm; padding:6mm 8mm; }
+.badge .photo{ width:24mm; height:24mm; border-radius:6px; background:#dce6ec; flex:0 0 24mm;
+  display:flex; align-items:center; justify-content:center; color:#9fb1c0; font-size:30px; }
+.badge .who{ font-size:16px; font-weight:800; }
+.badge .role{ font-size:12px; color:var(--muted); }
+.badge .id{ margin-top:8px; font-weight:800; letter-spacing:1px; }
+.badge .status{ font-size:11px; font-weight:800; padding:2px 8px; border-radius:999px; display:inline-block; }
+.badge .status.ok{ background:#e7f6ec; color:var(--ok); }
+.badge .status.dead{ background:#fdecea; color:var(--warn); }
+.badge.contractor .band{ background:#7a5a12; }
+.badge.terminated{ filter:grayscale(.2); }
+
+/* classification folder label */
+.folderlabel{ width:150mm; height:40mm; display:flex; align-items:center; gap:14px;
+  padding:0 12mm; border-radius:6px; color:#fff; font-weight:800; letter-spacing:1px; font-size:24px; }
+.folderlabel small{ font-weight:600; font-size:13px; letter-spacing:.5px; opacity:.92; }
+.folderlabel.public{ background:var(--ok); }
+.folderlabel.internal{ background:var(--amber); }
+.folderlabel.confidential{ background:var(--warn); }
+
+/* polaroid photo */
+.photo-card{ width:120mm; background:#fff; padding:7mm 7mm 16mm; box-shadow:0 6px 18px rgba(0,0,0,.25);
+  transform:rotate(-1.5deg); }
+.photo-card .img{ height:80mm; background:
+  linear-gradient(180deg,#9fb6c4,#7b94a4 55%,#5b6b5f 55%,#48563f);
+  position:relative; display:flex; align-items:flex-end; justify-content:center; }
+.photo-card .img .usb{ width:26mm; height:9mm; background:#11181f; border-radius:2px; margin-bottom:14mm;
+  box-shadow:0 2px 4px rgba(0,0,0,.4); position:relative; }
+.photo-card .img .usb::after{ content:"PROJECT FROST"; position:absolute; inset:0; color:#cfeefb;
+  font-size:6px; display:flex; align-items:center; justify-content:center; letter-spacing:1px; }
+.photo-card .img .sign{ position:absolute; top:8mm; left:8mm; background:#0b6e99; color:#fff;
+  font-size:9px; padding:3px 7px; border-radius:3px; }
+.photo-card .cap{ text-align:center; margin-top:8mm; font-size:13px; }
+
+.door-sign{ text-align:center; padding:24mm 10mm; border:3px solid var(--brand); border-radius:14px; }
+.door-sign .big{ font-size:46px; font-weight:800; color:var(--brand-dark); letter-spacing:1px; }
+.door-sign .soc{ font-size:22px; letter-spacing:8px; color:var(--accent); text-transform:uppercase; margin-top:8px; }

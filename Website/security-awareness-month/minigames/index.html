@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mini-games · Security Awareness Month</title>
+  <!-- link-preview -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Security Awareness Month">
+  <meta property="og:title" content="Mini-games · Think like an attacker">
+  <meta property="og:description" content="Ten-minute games: think like an attacker, find the openings, climb the leaderboard.">
+  <meta property="og:url" content="https://www.njolstad.no/security-awareness-month/minigames/">
+  <meta property="og:image" content="https://www.njolstad.no/security-awareness-month/minigames/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#0b1118">
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
+  <!-- /link-preview -->
+  <meta name="description" content="Ten-minute games: think like an attacker, find the openings, climb the leaderboard.">
+  <link rel="stylesheet" href="engine.css">
+  <script src="catalog.js" defer></script>
+  <script src="board.js" defer></script>
+  <script src="hub.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./"><span class="brand-mark">SA</span> MINI-GAMES <small>/ SECURITY AWARENESS MONTH</small></a>
+    <a class="game-name" href="leaderboard/">LEADERBOARD →</a>
+  </header>
+  <main>
+    <section class="hub-top">
+      <div class="hub-head">
+        <p class="eyebrow">PRACTICE · 10 MINUTES EACH</p>
+        <h1>Think like an attacker.<br><span class="accent">Climb the board.</span></h1>
+        <p class="intro">Each game is a scene with hidden openings an attacker would use. Find them, then break the attack chain. Your best score on each game counts towards the Championship. Replay as often as you like: layouts and answer orders are shuffled every run.</p>
+        <div class="rules">
+          <span>Start with 600 points</span><span>−1 per second</span><span>−25 per wrong click</span><span>−100 per hint</span><span>−100 per missed opening</span>
+        </div>
+      </div>
+      <aside class="champ card-lite">
+        <div class="champ-head"><p class="eyebrow">CHAMPIONSHIP · TOP 10</p><a href="leaderboard/">All boards →</a></div>
+        <div id="champ"><p class="muted">Loading…</p></div>
+      </aside>
+    </section>
+    <h2 class="group">DIGITAL</h2>
+    <div class="games" id="digital"></div>
+    <h2 class="group">PHYSICAL</h2>
+    <div class="games" id="physical"></div>
+    <p class="hub-foot">Best on a laptop or desktop. Scores are checked and timed by the server. Nicknames are public, so don't use your full name. Thinking like an attacker is for spotting risk: testing real systems or premises always needs written permission.</p>
+        <p class="hub-foot">Openings are tagged with <a href="https://nsm.no/regelverk-og-hjelp/grunnprinsipper/" target="_blank" rel="noopener">NSM's basic principles for ICT security</a> where they fit, and some stories draw on NSM's <a href="https://nsm.no/regelverk-og-hjelp/rapporter/risiko-2026" target="_blank" rel="noopener">Risiko 2026</a>. Made for <a href="https://norsis.no/nasjonal-sikkerhetsmaned/" target="_blank" rel="noopener">Nasjonal sikkerhetsmåned</a>, run by NorSIS. Our own wording; not endorsed by NSM or NorSIS.</p>
+      </main>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B2/B3 — Authenticator Token &amp; MFA Recovery Envelope</title>
+<link rel="stylesheet" href="assets/print.css">
+<style>
+  .cutgrid { gap:10mm; }
+  .token { width:80mm; padding:8mm; }
+  .token .code { font-size:36px; letter-spacing:8px; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div>
+    <h1><span class="tag">B2 + B3 · PUZZLE 3</span> Authenticator token &amp; MFA recovery</h1>
+    <p><b>Print:</b> 1 × colour, A4, cut out. <b>Token card</b> → in the desk drawer (the 6-digit second factor
+       <b>481509</b>). <b>Recovery slip</b> → fold into a real envelope marked “MFA RECOVERY CODES — break glass”;
+       it’s the anti-frustration backup (same code). Keep a few spare sealed envelopes for resets.</p>
+  </div>
+  <button class="printbtn" onclick="window.print()">Print</button>
+</div>
+
+<div class="sheet">
+  <div class="letterhead">
+    <div class="brand"><span class="logo"></span>
+      <div><div class="name">Multi-Factor Authentication</div>
+      <div class="motto">Something you have</div></div></div>
+    <div class="meta">Puzzle 3<br>Desk drawer</div>
+  </div>
+
+  <div class="cutgrid" style="align-items:flex-start; gap:14mm">
+    <!-- token -->
+    <div class="cut">
+      <div class="token">
+        <div class="label">NIMBUS Authenticator 🔐</div>
+        <div class="user">a.mercer@nimbuscloud.com</div>
+        <div class="code">481509</div>
+        <div class="bar"></div>
+        <div class="ref">training token snapshot · token ID 7731</div>
+      </div>
+    </div>
+
+    <!-- recovery slip -->
+    <div class="cut" style="width:80mm">
+      <div style="padding:8mm">
+        <div style="font-size:11px;letter-spacing:2px;color:var(--muted)">FOLD INTO THE “BREAK GLASS” ENVELOPE</div>
+        <h2 class="title" style="font-size:18px;margin-top:6px">MFA Recovery</h2>
+        <p style="margin:6px 0">If your authenticator is unavailable, use the one-time backup code below.</p>
+        <p style="font-size:21px;font-weight:800;letter-spacing:3px">Backup code: 481509</p>
+        <p class="sub">Do not share. Report use to Security immediately.</p>
+      </div>
+    </div>
+  </div>
+
+  <hr class="rule" style="margin:14mm 0 8mm">
+  <div style="font-size:12px;letter-spacing:2px;color:var(--muted);margin-bottom:6mm">ENVELOPE FRONT (glue/print onto the envelope)</div>
+  <div class="cut">
+    <div class="envelope">
+      <div class="brand" style="justify-content:center"><span class="logo"></span>
+        <div class="name">NIMBUS Cloud Solutions</div></div>
+      <h2 class="title" style="font-size:22px;margin:10px 0 0">MFA RECOVERY CODES</h2>
+      <div class="seal">⚠ BREAK GLASS — EMERGENCY USE ONLY ⚠</div>
+      <p class="sub" style="margin-top:10px">Sealed by IT Security. Opening this records an audit event.</p>
+    </div>
+  </div>
+
+  <div class="foot"><span>BREACH PROTOCOL · MFA props</span><span>Keep spare sealed envelopes for resets</span></div>
+</div>
+
+</body>
+</html>
