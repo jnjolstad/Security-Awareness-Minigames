@@ -574,6 +574,28 @@ async function updateGroup(request, env, db) {
   return json({ ok: true });
 }
 
+async function deleteGroup(request, env, db) {
+  const actor = await actorContext(request, env, db);
+  if (!actor.globalAdmin) return fail(403, "Global admin access required.");
+  const body = await readJson(request);
+  const groupId = String(body && body.groupId || "");
+  if (!/^[0-9a-f]{24}$/.test(groupId)) return fail(400, "Invalid group.");
+  const group = await db.prepare("SELECT id FROM sam_mg_groups WHERE id = ?").bind(groupId).first();
+  if (!group) return fail(404, "Unknown group.");
+  const members = await db.prepare("SELECT COUNT(*) AS n FROM sam_mg_players WHERE group_id = ?").bind(groupId).first();
+  // The players belong to the group's own leaderboard, so they go with it. Detaching them
+  // would drop their scores into the group-less board.
+  await db.batch([
+    db.prepare("DELETE FROM sam_mg_best WHERE player_id IN (SELECT id FROM sam_mg_players WHERE group_id = ?)").bind(groupId),
+    db.prepare("DELETE FROM sam_mg_runs WHERE player_id IN (SELECT id FROM sam_mg_players WHERE group_id = ?)").bind(groupId),
+    db.prepare("DELETE FROM sam_mg_players WHERE group_id = ?").bind(groupId),
+    db.prepare("DELETE FROM sam_mg_group_games WHERE group_id = ?").bind(groupId),
+    db.prepare("DELETE FROM sam_mg_group_admins WHERE group_id = ?").bind(groupId),
+    db.prepare("DELETE FROM sam_mg_groups WHERE id = ?").bind(groupId),
+  ]);
+  return json({ ok: true, removedPlayers: (members && members.n) || 0 });
+}
+
 async function setGroupAdmin(request, env, db, remove = false) {
   const actor = await actorContext(request, env, db);
   if (!actor.globalAdmin) return fail(403, "Global admin access required.");
@@ -760,6 +782,7 @@ export async function onRequest(context) {
     if (route === "/groups" && method === "GET") return await listGroups(request, env, db);
     if (route === "/groups" && method === "POST") return await createGroup(request, env, db);
     if (route === "/groups" && method === "PATCH") return await updateGroup(request, env, db);
+    if (route === "/groups" && method === "DELETE") return await deleteGroup(request, env, db);
     if (route === "/groups/admin" && method === "POST") return await setGroupAdmin(request, env, db);
     if (route === "/groups/admin" && method === "DELETE") return await setGroupAdmin(request, env, db, true);
     if (route === "/groups/games" && method === "POST") return await setGroupGames(request, env, db);

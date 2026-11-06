@@ -243,8 +243,37 @@
         }, add);
       });
       card.append(form);
+
+      const del = el("button", { type: "button", className: "danger small", textContent: "Delete group…" });
+      del.addEventListener("click", () => askDelete(group));
+      card.append(el("div", { className: "danger-zone" }, del));
     }
     return card;
+  }
+
+  // Deleting also removes the group's players and scores, so the admin has to type the slug.
+  function askDelete(group) {
+    const dlg = $("deleteDialog");
+    const typed = $("deleteConfirm");
+    const go = $("deleteGo");
+    const needsSlug = group.members > 0;
+    $("deleteTitle").textContent = `Delete "${group.name}"?`;
+    $("deleteBody").textContent = needsSlug
+      ? `This permanently removes the group, its ${group.members} player${group.members === 1 ? "" : "s"} and all their scores. It cannot be undone.`
+      : "This permanently removes the group and its settings. It has no players. It cannot be undone.";
+    $("deleteSlugRow").hidden = !needsSlug;
+    $("deleteSlugLabel").textContent = group.slug;
+    typed.value = "";
+    go.disabled = needsSlug;
+    typed.oninput = () => { go.disabled = typed.value.trim() !== group.slug; };
+    go.onclick = () => run(async () => {
+      await call("/groups", { method: "DELETE", body: { groupId: group.id } });
+      dlg.close();
+      groups = groups.filter((g) => g.id !== group.id);
+      renderGroups();
+      toast("Group deleted");
+    }, go);
+    dlg.showModal();
   }
 
   function renderGroups() {
@@ -344,6 +373,7 @@
     }, e.submitter);
   });
 
+  $("deleteCancel").addEventListener("click", () => $("deleteDialog").close());
   $("testCreds").addEventListener("click", () => run(testAccess, $("testCreds")));
   $("debugAuth").addEventListener("click", () => run(checkAuthConfig, $("debugAuth")));
 
