@@ -1,4 +1,5 @@
 "use strict";
+// build-marker: admin-panel-v2-2026-11-06
 
 (() => {
   const allRanked = MINIGAMES.games.filter((g) => !g.pending);
