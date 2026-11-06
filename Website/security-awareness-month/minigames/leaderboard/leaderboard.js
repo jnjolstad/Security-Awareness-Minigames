@@ -118,8 +118,9 @@
     list.style.marginBottom = "12px";
     list.innerHTML = groupsState.map((g) => {
       const enabled = Object.values(g.games || {}).filter(Boolean).length;
-      const open = `?group=${encodeURIComponent(g.slug)}#overall`;
-      return `${g.name} (${g.slug}) · members: ${g.members} · games: ${enabled}/${allRanked.length} · ${g.active ? "active" : "inactive"} · <a href="${open}">open board</a>`;
+      const board = `?group=${encodeURIComponent(g.slug)}#overall`;
+      const play = `../?group=${encodeURIComponent(g.slug)}`;
+      return `${g.name} (${g.slug}) · members: ${g.members} · games: ${enabled}/${allRanked.length} · ${g.active ? "active" : "inactive"} · <a href="${play}">play link</a> · <a href="${board}">group board</a>`;
     }).join("<br>");
     panel.append(list);
 

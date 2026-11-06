@@ -337,7 +337,7 @@ async function finishRun(request, db) {
       .bind(player.id, run.game, result.score, result.durationMs, result.wrong, result.hints, result.found, now),
   ]);
   if (!deleted.meta || deleted.meta.changes !== 1) return fail(409, "Run already submitted.");
-  const board = await gameBoard(db, run.game, player.id);
+  const board = await gameBoard(db, run.game, player.id, player.group_id || null);
   return json({
     ...result,
     personalBest,
@@ -371,32 +371,44 @@ function shape(rows, playerId, overall) {
 const visible = (p) => `(rk <= ${TOP} OR rk = (SELECT rk FROM r WHERE player_id = ${p}) OR rk = (SELECT rk FROM r WHERE player_id = ${p}) - 1)`;
 
 async function gameBoard(db, game, playerId, groupId = null) {
-  const groupClause = groupId ? "AND p.group_id = ?3" : "";
+  const groupClause = groupId ? "p.group_id = ?3" : "p.group_id IS NULL";
   const binds = groupId ? [game, playerId || "", groupId] : [game, playerId || ""];
   const { results } = await db.prepare(`
-    WITH r AS (
-      SELECT player_id, score, duration_ms, first_score,
+    WITH scoped AS (
+      SELECT b.player_id, b.score, b.duration_ms, b.first_score, b.achieved_at, p.name
+      FROM sam_mg_best b
+      JOIN sam_mg_players p ON p.id = b.player_id
+      WHERE b.game = ?1 AND ${groupClause}
+    ),
+    r AS (
+      SELECT player_id, name, score, duration_ms, first_score,
         ROW_NUMBER() OVER (ORDER BY score DESC, duration_ms ASC, achieved_at ASC) AS rk
-      FROM sam_mg_best WHERE game = ?1)
-    SELECT r.*, p.name, (SELECT COUNT(*) FROM r) AS total
-    FROM r JOIN sam_mg_players p ON p.id = r.player_id
-    WHERE ${visible("?2")} ${groupClause} ORDER BY rk`).bind(...binds).all();
+      FROM scoped)
+    SELECT r.*, (SELECT COUNT(*) FROM r) AS total
+    FROM r
+    WHERE ${visible("?2")} ORDER BY rk`).bind(...binds).all();
   return shape(results, playerId, false);
 }
 
 async function overallBoard(db, playerId, groupId = null, games = GAME_IDS) {
   if (!games.length) return { entries: [], total: 0, me: null, next: null, gameCount: 0 };
   const marks = games.map((_, i) => `?${i + 2}`).join(", ");
-  const groupClause = groupId ? "AND p.group_id = ?" + (games.length + 2) : "";
+  const groupClause = groupId ? "p.group_id = ?" + (games.length + 2) : "p.group_id IS NULL";
   const params = groupId ? [playerId || "", ...games, groupId] : [playerId || "", ...games];
   const { results } = await db.prepare(`
-    WITH t AS (
-      SELECT player_id, SUM(score) AS score, SUM(duration_ms) AS duration_ms, SUM(first_score) AS first_score, COUNT(*) AS games, MAX(achieved_at) AS last
-      FROM sam_mg_best WHERE game IN (${marks}) GROUP BY player_id),
+    WITH scoped AS (
+      SELECT b.player_id, b.score, b.duration_ms, b.first_score, b.achieved_at, p.name
+      FROM sam_mg_best b
+      JOIN sam_mg_players p ON p.id = b.player_id
+      WHERE b.game IN (${marks}) AND ${groupClause}
+    ),
+    t AS (
+      SELECT player_id, name, SUM(score) AS score, SUM(duration_ms) AS duration_ms, SUM(first_score) AS first_score, COUNT(*) AS games, MAX(achieved_at) AS last
+      FROM scoped GROUP BY player_id, name),
     r AS (SELECT t.*, ROW_NUMBER() OVER (ORDER BY score DESC, duration_ms ASC, last ASC) AS rk FROM t)
-    SELECT r.*, p.name, (SELECT COUNT(*) FROM r) AS total
-    FROM r JOIN sam_mg_players p ON p.id = r.player_id
-    WHERE ${visible("?1")} ${groupClause} ORDER BY rk`).bind(...params).all();
+    SELECT r.*, (SELECT COUNT(*) FROM r) AS total
+    FROM r
+    WHERE ${visible("?1")} ORDER BY rk`).bind(...params).all();
   return { ...shape(results, playerId, true), gameCount: games.length };
 }
 

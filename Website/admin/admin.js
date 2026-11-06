@@ -86,13 +86,18 @@
     const g = selectedGroup();
     if (!g) {
       $("groupMeta").textContent = "No group selected.";
+      $("playLink").textContent = "-";
+      $("playLink").href = "#";
       $("boardLink").textContent = "-";
       $("boardLink").href = "#";
       renderGames(null);
       return;
     }
     $("groupMeta").textContent = `${g.name} (${g.slug}) · members: ${g.members} · ${g.active ? "active" : "inactive"}`;
+    const playUrl = `/minigames/?group=${encodeURIComponent(g.slug)}`;
     const boardUrl = `/minigames/leaderboard/?group=${encodeURIComponent(g.slug)}#overall`;
+    $("playLink").href = playUrl;
+    $("playLink").textContent = playUrl;
     $("boardLink").href = boardUrl;
     $("boardLink").textContent = boardUrl;
     renderGames(g);
