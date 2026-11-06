@@ -1,3 +1,5 @@
 /security-awareness-month/minigames/* /minigames/:splat 301
 /minigames/* /security-awareness-month/minigames/:splat 200
+/admin /admin/ 301
+/admin/* /admin/:splat 200
 / /minigames/ 302
