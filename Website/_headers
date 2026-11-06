@@ -4,3 +4,8 @@
 /security-awareness-month/minigames/leaderboard/leaderboard.js
   Cache-Control: no-store, no-cache, must-revalidate, max-age=0
 
+/admin/
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+
+/admin/admin.js
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
