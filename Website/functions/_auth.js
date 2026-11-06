@@ -79,6 +79,12 @@ function getSessionSecret(env) {
   return String(env?.SAM_MINIGAMES_SESSION_SECRET || env?.SAM_MINIGAMES_ADMIN_KEY || "").trim();
 }
 
+function extractBearerToken(authHeader) {
+  const raw = String(authHeader || "");
+  const m = raw.match(/^Bearer\s+(.+)$/i);
+  return m ? m[1].trim() : "";
+}
+
 export function verifyAdminLogin(email, key, env) {
   const cleanEmail = normalizeEmail(email);
   const configuredKey = String(env?.SAM_MINIGAMES_ADMIN_KEY || "").trim();
@@ -89,13 +95,18 @@ export function verifyAdminLogin(email, key, env) {
   return safeEqual(configuredKey, providedKey);
 }
 
-export async function buildAdminSessionCookie(email, env) {
+export async function buildAdminSessionToken(email, env) {
   const cleanEmail = normalizeEmail(email);
   const secret = getSessionSecret(env);
   if (!cleanEmail || !secret) return "";
   const exp = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE;
   const payload = `${cleanEmail}.${exp}`;
-  const token = `${toBase64Url(new TextEncoder().encode(payload))}.${await hmacSha256(secret, payload)}`;
+  return `${toBase64Url(new TextEncoder().encode(payload))}.${await hmacSha256(secret, payload)}`;
+}
+
+export async function buildAdminSessionCookie(email, env) {
+  const token = await buildAdminSessionToken(email, env);
+  if (!token) return "";
   return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_MAX_AGE}`;
 }
 
@@ -103,13 +114,9 @@ export function clearAdminSessionCookie() {
   return `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
 }
 
-export async function getTrustedAdminEmail(request, env) {
+async function verifySessionToken(token, env) {
   const secret = getSessionSecret(env);
   if (!secret) return "";
-  const cookies = parseCookieMap(request.headers.get("cookie"));
-  const tokenRaw = cookies.get(SESSION_COOKIE);
-  if (!tokenRaw) return "";
-  const token = decodeURIComponent(tokenRaw);
   const parts = token.split(".");
   if (parts.length !== 2) return "";
   let payload = "";
@@ -130,4 +137,19 @@ export async function getTrustedAdminEmail(request, env) {
   if (!clean || !Number.isFinite(exp) || exp < Math.floor(Date.now() / 1000)) return "";
   if (!isAdminEmail(clean, env)) return "";
   return clean;
+}
+
+export async function getTrustedAdminEmail(request, env) {
+  const cookies = parseCookieMap(request.headers.get("cookie"));
+  const cookieTokenRaw = cookies.get(SESSION_COOKIE);
+  if (cookieTokenRaw) {
+    const email = await verifySessionToken(decodeURIComponent(cookieTokenRaw), env);
+    if (email) return email;
+  }
+  const bearerToken = extractBearerToken(request.headers.get("authorization"));
+  if (bearerToken) {
+    const email = await verifySessionToken(bearerToken, env);
+    if (email) return email;
+  }
+  return "";
 }

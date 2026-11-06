@@ -9,7 +9,7 @@
 // Storage is D1 (AUKSJON_DB binding, tables prefixed sam_mg_), which keeps
 // the free tier's 1,000 KV writes/day for the escape room.
 
-import { buildAdminSessionCookie, clearAdminSessionCookie, getTrustedAdminEmail, isAdminEmail, verifyAdminLogin } from "../../_auth.js";
+import { buildAdminSessionCookie, buildAdminSessionToken, clearAdminSessionCookie, getTrustedAdminEmail, isAdminEmail, verifyAdminLogin } from "../../_auth.js";
 import { GAMES } from "../_minigames-key.js";
 
 const POINTS = { wrong: 25, hint: 100, missed: 100 };
@@ -594,8 +594,9 @@ async function loginAdmin(request, env) {
   const key = String(body && body.key || "");
   if (!verifyAdminLogin(email, key, env)) return fail(403, "Invalid admin credentials.");
   const cookie = await buildAdminSessionCookie(email, env);
+  const token = await buildAdminSessionToken(email, env);
   if (!cookie) return fail(503, "Admin session is not configured.");
-  return new Response(JSON.stringify({ ok: true }), {
+  return new Response(JSON.stringify({ ok: true, token }), {
     status: 200,
     headers: {
       "content-type": "application/json; charset=utf-8",

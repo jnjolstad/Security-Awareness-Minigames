@@ -2,6 +2,7 @@
 
 (() => {
   const API = "/security-awareness-month/minigames-api";
+  const TOKEN_KEY = "minigames:admin-session-token";
   const ranked = (window.MINIGAMES && window.MINIGAMES.games || []).filter((g) => !g.pending);
   let groups = [];
 
@@ -9,6 +10,8 @@
 
   async function call(path, { method = "GET", body } = {}) {
     const headers = { "content-type": "application/json" };
+    const token = String(sessionStorage.getItem(TOKEN_KEY) || "").trim();
+    if (token) headers.authorization = `Bearer ${token}`;
     const res = await fetch(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined, credentials: "same-origin" });
     let data = {};
     try { data = await res.json(); } catch { /* ignore */ }
@@ -20,11 +23,13 @@
     const email = String($("adminEmail").value || "").trim().toLowerCase();
     const key = String($("adminKey").value || "").trim();
     if (!email || !key) throw new Error("Enter both admin email and admin key.");
-    await call("/auth/login", { method: "POST", body: { email, key } });
+    const data = await call("/auth/login", { method: "POST", body: { email, key } });
+    if (data && data.token) sessionStorage.setItem(TOKEN_KEY, data.token);
   }
 
   async function logout() {
     await call("/auth/logout", { method: "POST" });
+    sessionStorage.removeItem(TOKEN_KEY);
   }
 
   async function testAccess() {
