@@ -44,12 +44,11 @@ Deploy latest commit after saving.
 
 Check file directly:
 
-- `https://securityawarenessmonth.njolstad.no/security-awareness-month/minigames/leaderboard/leaderboard.js`
+- `https://securityawarenessmonth.njolstad.no/admin/admin.js`
 
 It must contain:
 
-- `adminPanelV2`
-- `build-marker: admin-panel-v2-2026-11-06`
+- `build-marker: admin-panel-v3-2026-11-06`
 
 You can also run:
 

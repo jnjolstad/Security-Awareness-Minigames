@@ -3,86 +3,129 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="color-scheme" content="dark">
   <title>Admin · Security Awareness Month</title>
   <style>
-    body { font-family: Inter, Segoe UI, Arial, sans-serif; margin: 0; background: #0b1118; color: #d7e4f2; }
-    main { max-width: 980px; margin: 24px auto; padding: 0 16px 48px; }
-    h1 { margin: 0 0 8px; font-size: 30px; }
-    h2 { font-size: 20px; margin: 0 0 12px; }
-    .muted { color: #90a4b8; }
-    .card { background: #111a24; border: 1px solid #1b2a3a; border-radius: 12px; padding: 16px; margin-top: 16px; }
-    input, select, button { border-radius: 8px; border: 1px solid #294057; background: #0d1722; color: #e2eef9; padding: 8px 10px; }
-    button { cursor: pointer; background: #16314a; }
-    button.primary { background: #2d9e74; border-color: #2d9e74; color: #071611; font-weight: 600; }
-    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; align-items: center; }
-    .games { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin: 10px 0; }
-    label { display: inline-flex; gap: 6px; align-items: center; }
-    .ok { color: #8ff0c3; }
-    .warn { color: #ffd191; }
-    .muted a,
-    .muted a:visited {
-      color: #8ecbff;
-      text-decoration-color: #4f89c2;
-      text-underline-offset: 2px;
-      overflow-wrap: anywhere;
-      word-break: break-word;
-    }
-    .muted a:hover,
-    .muted a:focus-visible {
-      color: #c7e6ff;
-    }
+    :root { --bg:#0b1118; --panel:#111a24; --panel-2:#0d1722; --line:#1f3043; --text:#e2eef9; --muted:#90a4b8; --green:#2d9e74; --green-text:#8ff0c3; --blue:#8ecbff; --amber:#ffd191; --red:#ff9aa2; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 Inter, "Segoe UI", Arial, sans-serif; }
+    main { max-width:920px; margin:0 auto; padding:20px 16px 64px; }
+    header.top { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+    header.top h1 { margin:0; font-size:24px; flex:1 1 auto; }
+    .who { color:var(--muted); font-size:13px; }
+    h2 { font-size:17px; margin:0 0 12px; }
+    h3 { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:18px 0 8px; font-weight:600; }
+    .muted { color:var(--muted); }
+    a { color:var(--blue); overflow-wrap:anywhere; }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:14px; }
+    input[type=text], input[type=email], button { font:inherit; border-radius:8px; border:1px solid #294057; background:var(--panel-2); color:var(--text); padding:8px 12px; min-height:38px; }
+    input::placeholder { color:#6f8398; }
+    button { cursor:pointer; background:#16314a; }
+    button:hover:enabled { background:#1d4163; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    button.primary { background:var(--green); border-color:var(--green); color:#071611; font-weight:650; }
+    button.primary:hover:enabled { background:#37b184; }
+    button.quiet { background:transparent; }
+    button.small { min-height:30px; padding:3px 10px; font-size:13px; }
+    :focus-visible { outline:2px solid var(--amber); outline-offset:2px; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .row > input { flex:1 1 180px; min-width:0; }
+    .status { margin:10px 0 0; min-height:1.4em; }
+    .ok { color:var(--green-text); } .warn { color:var(--amber); } .bad { color:var(--red); }
+
+    .group-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .group-head .name { font-size:18px; font-weight:650; flex:1 1 auto; min-width:0; overflow-wrap:anywhere; }
+    .slug { color:var(--muted); font-weight:400; font-size:13px; margin-left:6px; }
+    .badge { font-size:12px; padding:2px 9px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+    .badge.on { color:var(--green-text); border-color:#2d6b55; }
+    .badge.off { color:var(--amber); border-color:#6b5530; }
+
+    .switch { display:inline-flex; align-items:center; gap:8px; cursor:pointer; user-select:none; }
+    .switch input { position:absolute; opacity:0; width:1px; height:1px; }
+    .switch .track { width:40px; height:22px; border-radius:999px; background:#2a3a4b; position:relative; transition:background .15s; flex:none; }
+    .switch .track::after { content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#cfe0f0; transition:transform .15s; }
+    .switch input:checked + .track { background:var(--green); }
+    .switch input:checked + .track::after { transform:translateX(18px); background:#071611; }
+    .switch input:focus-visible + .track { outline:2px solid var(--amber); outline-offset:2px; }
+    .switch input:disabled + .track { opacity:.5; }
+
+    .links { display:grid; gap:8px; }
+    .link-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .link-row .label { width:84px; color:var(--muted); font-size:13px; flex:none; }
+    .link-row a { flex:1 1 200px; min-width:0; font-size:13px; }
+
+    .games { display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:8px; }
+    .game { display:flex; align-items:center; gap:10px; padding:8px 12px; border:1px solid var(--line); border-radius:10px; background:var(--panel-2); }
+    .game .icon { font-size:18px; flex:none; }
+    .game .gname { flex:1 1 auto; min-width:0; font-size:14px; }
+    .games-tools { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+    .games-tools .count { color:var(--muted); font-size:13px; margin-left:auto; }
+
+    .chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+    .chip { display:inline-flex; align-items:center; gap:6px; padding:3px 4px 3px 12px; border:1px solid var(--line); border-radius:999px; background:var(--panel-2); font-size:13px; overflow-wrap:anywhere; }
+    .chip.ro { padding-right:12px; }
+    .chip button { min-height:24px; padding:0 8px; border-radius:999px; border:0; background:transparent; color:var(--muted); font-size:16px; line-height:1; }
+    .chip button:hover:enabled { background:#2a3a4b; color:var(--red); }
+
+    #toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); max-width:calc(100% - 32px); padding:10px 16px; border-radius:10px; background:#16314a; border:1px solid #294057; box-shadow:0 8px 24px #0008; opacity:0; pointer-events:none; transition:opacity .2s; z-index:10; }
+    #toast.show { opacity:1; }
+    #toast.err { background:#3a1a22; border-color:#6b2a35; color:#ffd0d4; }
+
+    details.diag summary { cursor:pointer; color:var(--muted); font-size:14px; }
+    .checks { list-style:none; padding:0; margin:12px 0 0; display:grid; gap:4px; font-size:14px; }
+    .checks li::before { content:"✓ "; color:var(--green-text); }
+    .checks li.fail::before { content:"! "; color:var(--amber); }
+    .checks li.fail { color:var(--amber); }
+    [hidden] { display:none !important; }
+    @media (max-width:520px) { .link-row .label { width:100%; } }
   </style>
   <script src="/security-awareness-month/minigames/catalog.js" defer></script>
-  <script src="admin.js?v=20261106-4" defer></script>
+  <script src="admin.js?v=20261106-5" defer></script>
 </head>
 <body>
   <main>
-    <h1>Mini-games admin</h1>
-    <p class="muted">Secure admin access for group management and game deployment.</p>
+    <header class="top">
+      <h1>Mini-games admin</h1>
+      <span class="who" id="who" hidden></span>
+      <button class="quiet small" id="logout" hidden>Log out</button>
+    </header>
 
-    <section class="card">
+    <section class="card" id="loginCard" hidden>
       <h2>Admin login</h2>
-      <div class="row">
-        <input id="adminEmail" type="email" placeholder="Admin email" size="32">
-        <button class="primary" id="sendLoginLink">Send login link</button>
-        <button id="clearCreds">Log out</button>
-        <button id="testCreds">Test access</button>
-        <button id="debugAuth">Debug auth config</button>
-      </div>
-      <p id="authStatus" class="muted">Enter your admin email to receive a one-time login link.</p>
-      <p id="debugStatus" class="muted"></p>
+      <form class="row" id="loginForm">
+        <input id="adminEmail" type="email" placeholder="Admin email" autocomplete="email" required>
+        <button class="primary" id="sendLoginLink" type="submit">Send login link</button>
+      </form>
+      <p class="status muted" id="authStatus" role="status">Enter your admin email to receive a one-time login link.</p>
     </section>
 
-    <section class="card">
-      <h2>Create group</h2>
-      <div class="row">
-        <input id="newGroupName" type="text" placeholder="Group name" size="28">
-        <input id="newGroupSlug" type="text" placeholder="slug (optional)" size="20">
-        <button class="primary" id="createGroup">Create</button>
-      </div>
-    </section>
+    <div id="app" hidden>
+      <section class="card" id="createCard" hidden>
+        <h2>New group</h2>
+        <form class="row" id="createForm">
+          <input id="newGroupName" type="text" placeholder="Group name" minlength="2" maxlength="60" required>
+          <input id="newGroupSlug" type="text" placeholder="slug (optional)" maxlength="32" autocapitalize="off" spellcheck="false">
+          <button class="primary" type="submit">Create group</button>
+        </form>
+      </section>
 
-    <section class="card">
-      <h2>Edit group</h2>
-      <div class="row">
-        <select id="groupSelect"></select>
-        <button id="reloadGroups">Reload</button>
-      </div>
-      <p id="groupMeta" class="muted"></p>
-      <div class="games" id="games"></div>
-      <div class="row">
-        <button class="primary" id="saveGames">Save game deployment</button>
-        <button id="toggleActive">Toggle active</button>
-      </div>
-      <div class="row">
-        <input id="adminEmailTarget" type="email" placeholder="group admin email" size="30">
-        <button id="addGroupAdmin">Add group admin</button>
-        <button id="removeGroupAdmin">Remove group admin</button>
-      </div>
-      <p class="muted">Group play link: <a id="playLink" href="#" target="_blank" rel="noopener">-</a></p>
-      <p class="muted">Group leaderboard: <a id="boardLink" href="#" target="_blank" rel="noopener">-</a></p>
-      <p class="muted">Open leaderboard (separate): <a id="openBoardLink" href="/minigames/leaderboard/#overall" target="_blank" rel="noopener">/minigames/leaderboard/#overall</a></p>
-    </section>
+      <div id="groups"></div>
+      <p class="muted" id="noGroups" hidden>No groups yet.</p>
+
+      <section class="card">
+        <details class="diag">
+          <summary>Diagnostics</summary>
+          <div class="row" style="margin-top:12px">
+            <button class="small" id="testCreds" type="button">Test access</button>
+            <button class="small" id="debugAuth" type="button">Check auth configuration</button>
+          </div>
+          <p class="status muted" id="diagStatus" role="status"></p>
+          <ul class="checks" id="diagChecks"></ul>
+        </details>
+      </section>
+    </div>
   </main>
+  <div id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>

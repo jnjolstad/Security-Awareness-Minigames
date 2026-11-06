@@ -62,14 +62,14 @@ if ($failedChecks.Count -gt 0) {
 
 Write-Host "API group/admin checks passed." -ForegroundColor Green
 
-$boardFile = "Website\security-awareness-month\minigames\leaderboard\leaderboard.js"
-$boardContent = Get-Content -LiteralPath $boardFile -Raw
-if ($boardContent -notmatch "adminPanelV2") {
-  Write-Host "Leaderboard admin panel marker not found (adminPanelV2)." -ForegroundColor Red
+$adminFile = "Website\admin\admin.js"
+$adminContent = Get-Content -LiteralPath $adminFile -Raw
+if ($adminContent -notmatch "admin-panel-v3") {
+  Write-Host "Admin panel marker not found (admin-panel-v3)." -ForegroundColor Red
   exit 1
 }
 
-Write-Host "Leaderboard admin panel check passed." -ForegroundColor Green
+Write-Host "Admin panel check passed." -ForegroundColor Green
 
 Write-Host ""
 Write-Host "Preflight complete. No infrastructure changes were made." -ForegroundColor Cyan

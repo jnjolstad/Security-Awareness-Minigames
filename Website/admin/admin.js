@@ -1,12 +1,32 @@
 "use strict";
+// build-marker: admin-panel-v3-2026-11-06
 
 (() => {
   const API = "/security-awareness-month/minigames-api";
+  const BASE = "/security-awareness-month/minigames/";
   const TOKEN_KEY = "minigames:admin-session-token";
+  const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const ranked = (window.MINIGAMES && window.MINIGAMES.games || []).filter((g) => !g.pending);
-  let groups = [];
 
   const $ = (id) => document.getElementById(id);
+  let me = { admin: false, globalAdmin: false, email: "" };
+  let groups = [];
+
+  function el(tag, props = {}, ...children) {
+    const node = Object.assign(document.createElement(tag), props);
+    node.append(...children);
+    return node;
+  }
+
+  let toastTimer;
+  function toast(message, isError = false) {
+    const t = $("toast");
+    t.textContent = message;
+    t.classList.toggle("err", isError);
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), isError ? 5000 : 2200);
+  }
 
   async function call(path, { method = "GET", body } = {}) {
     const headers = { "content-type": "application/json" };
@@ -14,184 +34,332 @@
     if (token) headers.authorization = `Bearer ${token}`;
     const res = await fetch(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined, credentials: "same-origin" });
     let data = {};
-    try { data = await res.json(); } catch { /* ignore */ }
+    try { data = await res.json(); } catch { /* not JSON */ }
     if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
     return data;
   }
 
-  async function sendLoginLink() {
-    const email = String($("adminEmail").value || "").trim().toLowerCase();
-    if (!email) throw new Error("Enter your admin email.");
-    await call("/auth/request-login", { method: "POST", body: { email } });
-    const el = $("authStatus");
-    el.className = "ok";
-    el.textContent = "If this email has admin access, a one-time login link has been sent.";
-  }
-
-  async function verifyLoginToken(token) {
-    const data = await call("/auth/verify-login", { method: "POST", body: { token } });
-    if (data && data.token) sessionStorage.setItem(TOKEN_KEY, data.token);
-  }
-
-  async function maybeConsumeLoginToken() {
-    const url = new URL(location.href);
-    const token = String(url.searchParams.get("login_token") || "").trim();
-    if (!token) return false;
-    await verifyLoginToken(token);
-    url.searchParams.delete("login_token");
-    history.replaceState({}, "", url.pathname + (url.search ? url.search : "") + url.hash);
-    const el = $("authStatus");
-    el.className = "ok";
-    el.textContent = "Login link verified. You are signed in.";
-    return true;
-  }
-
-  async function logout() {
-    await call("/auth/logout", { method: "POST" });
-    sessionStorage.removeItem(TOKEN_KEY);
-  }
-
-  async function testAccess() {
-    const el = $("authStatus");
+  // Runs a click/submit action; shows failures as a toast instead of an alert.
+  async function run(fn, button) {
+    if (button) button.disabled = true;
     try {
-      const data = await call("/admin");
-      el.className = data.admin ? "ok" : "warn";
-      el.textContent = data.admin
-        ? `Admin OK. global=${data.globalAdmin ? "yes" : "no"} email=${data.email || "-"}`
-        : "Credentials accepted but this identity has no admin rights.";
+      await fn();
     } catch (err) {
-      el.className = "warn";
-      el.textContent = `Auth failed: ${err.message}`;
+      toast(err.message, true);
+    } finally {
+      if (button) button.disabled = false;
     }
   }
 
-  async function debugAuth() {
-    const el = $("debugStatus");
-    try {
-      const data = await call("/auth/debug");
-      const details = [];
-      if (!data.ok) details.push("Auth config has issues.");
-      if (Array.isArray(data.issues) && data.issues.length) details.push(...data.issues);
-      details.push(`adminEmailsConfigured=${data.checks && data.checks.adminEmailsConfigured ? "yes" : "no"}`);
-      details.push(`resendConfigured=${data.checks && data.checks.resendConfigured ? "yes" : "no"}`);
-      details.push(`emailSenderConfigured=${data.checks && data.checks.emailSenderConfigured ? "yes" : "no"}`);
-      details.push(`sessionSecretConfigured=${data.checks && data.checks.sessionSecretConfigured ? "yes" : "no"}`);
-      details.push(`sessionSecretUsingAdminKey=${data.checks && data.checks.sessionSecretUsingAdminKey ? "yes" : "no"}`);
-      details.push(`currentSessionEmail=${data.currentSessionEmail || "-"}`);
-      el.className = data.ok ? "ok" : "warn";
-      el.textContent = details.join(" ");
-    } catch (err) {
-      el.className = "warn";
-      el.textContent = `Debug failed: ${err.message}`;
+  function setAuthStatus(text, cls = "muted") {
+    const s = $("authStatus");
+    s.className = `status ${cls}`;
+    s.textContent = text;
+  }
+
+  // ---- views -------------------------------------------------------------
+
+  function showLogin() {
+    $("loginCard").hidden = false;
+    $("app").hidden = true;
+    $("who").hidden = true;
+    $("logout").hidden = true;
+    groups = [];
+    $("groups").replaceChildren();
+  }
+
+  function showApp() {
+    $("loginCard").hidden = true;
+    $("app").hidden = false;
+    $("createCard").hidden = !me.globalAdmin;
+    $("who").hidden = false;
+    $("who").textContent = `${me.email || "admin"} · ${me.globalAdmin ? "global admin" : "group admin"}`;
+    $("logout").hidden = false;
+  }
+
+  function absolute(path) {
+    return location.origin + path;
+  }
+
+  function linkRow(label, path) {
+    const url = absolute(path);
+    const copy = el("button", { type: "button", className: "small quiet", textContent: "Copy" });
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(url);
+        toast("Link copied");
+      } catch {
+        toast("Could not copy. Select the link and copy it manually.", true);
+      }
+    });
+    return el("div", { className: "link-row" },
+      el("span", { className: "label", textContent: label }),
+      el("a", { href: path, target: "_blank", rel: "noopener", textContent: url }),
+      copy);
+  }
+
+  function enabledIds(group) {
+    return ranked.filter((g) => group.games && group.games[g.id]).map((g) => g.id);
+  }
+
+  function renderGroup(group) {
+    const card = el("section", { className: "card" });
+    card.dataset.group = group.id;
+
+    // Header: name, status and the on/off switch (global admins only).
+    const badge = el("span", { className: "badge" });
+    const syncBadge = () => {
+      badge.className = `badge ${group.active ? "on" : "off"}`;
+      badge.textContent = group.active ? "Active" : "Inactive";
+    };
+    syncBadge();
+    const head = el("div", { className: "group-head" },
+      el("div", { className: "name" }, group.name, el("span", { className: "slug", textContent: group.slug })),
+      el("span", { className: "muted", textContent: `${group.members} player${group.members === 1 ? "" : "s"}` }),
+      badge);
+    if (me.globalAdmin) {
+      const input = el("input", { type: "checkbox", checked: !!group.active });
+      input.setAttribute("role", "switch");
+      input.setAttribute("aria-label", `Group ${group.name} active`);
+      const sw = el("label", { className: "switch" }, input, el("span", { className: "track" }));
+      input.addEventListener("change", () => {
+        const next = input.checked;
+        if (!next && !confirm(`Deactivate "${group.name}"? Its players will not be able to play until you activate it again.`)) {
+          input.checked = true;
+          return;
+        }
+        run(async () => {
+          try {
+            await call("/groups", { method: "PATCH", body: { groupId: group.id, active: next } });
+            group.active = next;
+            syncBadge();
+            toast(next ? "Group activated" : "Group deactivated");
+          } catch (err) {
+            input.checked = !next;
+            throw err;
+          }
+        }, input);
+      });
+      head.append(sw);
     }
-  }
+    card.append(head);
 
-  function selectedGroup() {
-    return groups.find((g) => g.id === $("groupSelect").value) || null;
-  }
+    // Links to share.
+    const playPath = `${BASE}?group=${encodeURIComponent(group.slug)}`;
+    const boardPath = `${BASE}leaderboard/?group=${encodeURIComponent(group.slug)}#overall`;
+    card.append(el("h3", { textContent: "Share" }), el("div", { className: "links" },
+      linkRow("Play link", playPath), linkRow("Leaderboard", boardPath)));
 
-  function renderGames(group) {
-    const host = $("games");
-    const selected = new Set(Object.entries((group && group.games) || {}).filter(([, on]) => !!on).map(([id]) => id));
-    host.replaceChildren(...ranked.map((game) => {
-      const label = document.createElement("label");
-      const cb = Object.assign(document.createElement("input"), { type: "checkbox", value: game.id, checked: selected.has(game.id) });
-      label.append(cb, document.createTextNode(game.title));
-      return label;
-    }));
-  }
-
-  function updateGroupView() {
-    const g = selectedGroup();
-    if (!g) {
-      $("groupMeta").textContent = "No group selected.";
-      $("playLink").textContent = "-";
-      $("playLink").href = "#";
-      $("boardLink").textContent = "-";
-      $("boardLink").href = "#";
-      renderGames(null);
-      return;
+    // Games: every switch saves right away, one request at a time per group.
+    const count = el("span", { className: "count" });
+    const grid = el("div", { className: "games" });
+    const boxes = new Map();
+    const syncCount = () => { count.textContent = `${enabledIds(group).length} of ${ranked.length} on`; };
+    let queue = Promise.resolve();
+    const save = (previous) => {
+      queue = queue.then(async () => {
+        try {
+          await call("/groups/games", { method: "POST", body: { groupId: group.id, games: enabledIds(group) } });
+          toast("Games saved");
+        } catch (err) {
+          group.games = previous;
+          for (const [id, box] of boxes) box.checked = !!previous[id];
+          syncCount();
+          toast(err.message, true);
+        }
+      });
+    };
+    const setGames = (change) => {
+      const previous = { ...group.games };
+      group.games = { ...group.games, ...change };
+      for (const [id, box] of boxes) box.checked = !!group.games[id];
+      syncCount();
+      save(previous);
+    };
+    for (const game of ranked) {
+      const box = el("input", { type: "checkbox", checked: !!(group.games && group.games[game.id]) });
+      box.setAttribute("role", "switch");
+      box.setAttribute("aria-label", game.title);
+      box.addEventListener("change", () => setGames({ [game.id]: box.checked }));
+      boxes.set(game.id, box);
+      grid.append(el("div", { className: "game" },
+        el("span", { className: "icon", textContent: game.icon || "" }),
+        el("span", { className: "gname", textContent: game.title }),
+        el("label", { className: "switch" }, box, el("span", { className: "track" }))));
     }
-    $("groupMeta").textContent = `${g.name} (${g.slug}) · members: ${g.members} · ${g.active ? "active" : "inactive"}`;
-    const playUrl = `/minigames/?group=${encodeURIComponent(g.slug)}`;
-    const boardUrl = `/minigames/leaderboard/?group=${encodeURIComponent(g.slug)}#overall`;
-    $("playLink").href = playUrl;
-    $("playLink").textContent = playUrl;
-    $("boardLink").href = boardUrl;
-    $("boardLink").textContent = boardUrl;
-    renderGames(g);
+    const all = el("button", { type: "button", className: "small quiet", textContent: "All on" });
+    const none = el("button", { type: "button", className: "small quiet", textContent: "All off" });
+    all.addEventListener("click", () => setGames(Object.fromEntries(ranked.map((g) => [g.id, true]))));
+    none.addEventListener("click", () => setGames(Object.fromEntries(ranked.map((g) => [g.id, false]))));
+    syncCount();
+    card.append(el("h3", { textContent: "Games" }), el("div", { className: "games-tools" }, all, none, count), grid);
+
+    // Group admins.
+    const chips = el("div", { className: "chips" });
+    const drawChips = () => {
+      chips.replaceChildren(...(group.admins || []).map((email) => {
+        const chip = el("span", { className: `chip${me.globalAdmin ? "" : " ro"}` }, email);
+        if (me.globalAdmin) {
+          const x = el("button", { type: "button", textContent: "×" });
+          x.setAttribute("aria-label", `Remove ${email}`);
+          x.addEventListener("click", () => {
+            if (!confirm(`Remove ${email} as admin of "${group.name}"?`)) return;
+            run(async () => {
+              await call("/groups/admin", { method: "DELETE", body: { groupId: group.id, email } });
+              group.admins = group.admins.filter((e) => e !== email);
+              drawChips();
+              toast("Admin removed");
+            }, x);
+          });
+          chip.append(x);
+        }
+        return chip;
+      }));
+      if (!(group.admins || []).length) chips.append(el("span", { className: "muted", textContent: "No group admins yet." }));
+    };
+    drawChips();
+    card.append(el("h3", { textContent: "Group admins" }), chips);
+    if (me.globalAdmin) {
+      const input = el("input", { type: "email", placeholder: "Email to give admin access", autocomplete: "off", required: true });
+      const add = el("button", { type: "submit", textContent: "Add admin" });
+      const form = el("form", { className: "row" }, input, add);
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const email = input.value.trim().toLowerCase();
+        if (!EMAIL_PATTERN.test(email)) return toast("Enter a valid email address.", true);
+        if ((group.admins || []).includes(email)) return toast("That email is already an admin.", true);
+        run(async () => {
+          try {
+            const res = await call("/groups/admin", { method: "POST", body: { groupId: group.id, email } });
+            group.admins = [...(group.admins || []), email].sort();
+            input.value = "";
+            drawChips();
+            toast(res.invitationSent ? "Admin added. A login link was emailed." : "Admin added");
+          } catch (err) {
+            // The admin can be saved even when the login email fails, so show what the server has.
+            await loadGroups().catch(() => {});
+            throw err;
+          }
+        }, add);
+      });
+      card.append(form);
+    }
+    return card;
+  }
+
+  function renderGroups() {
+    $("groups").replaceChildren(...groups.map(renderGroup));
+    $("noGroups").hidden = groups.length > 0;
+    $("noGroups").textContent = me.globalAdmin ? "No groups yet. Create the first one above." : "You are not admin of any group yet.";
   }
 
   async function loadGroups() {
     const data = await call("/groups");
     groups = data.groups || [];
-    const sel = $("groupSelect");
-    sel.replaceChildren(...groups.map((g) => Object.assign(document.createElement("option"), { value: g.id, textContent: `${g.name} (${g.slug})` })));
-    updateGroupView();
+    renderGroups();
   }
 
-  async function createGroup() {
-    const name = String($("newGroupName").value || "").trim();
-    const slug = String($("newGroupSlug").value || "").trim();
-    if (!name) throw new Error("Group name is required.");
-    await call("/groups", { method: "POST", body: { name, slug } });
-    $("newGroupName").value = "";
-    $("newGroupSlug").value = "";
+  // ---- auth --------------------------------------------------------------
+
+  async function loadSession() {
+    me = await call("/admin");
+    if (!me.admin) {
+      showLogin();
+      return false;
+    }
+    showApp();
     await loadGroups();
+    return true;
   }
 
-  async function saveGames() {
-    const g = selectedGroup();
-    if (!g) throw new Error("Select a group first.");
-    const games = [...$("games").querySelectorAll("input[type=checkbox]:checked")].map((i) => i.value);
-    await call("/groups/games", { method: "POST", body: { groupId: g.id, games } });
-    await loadGroups();
+  async function consumeLoginToken() {
+    const url = new URL(location.href);
+    const token = String(url.searchParams.get("login_token") || "").trim();
+    if (!token) return;
+    // Remove the one-time token from the address bar straight away.
+    url.searchParams.delete("login_token");
+    history.replaceState({}, "", url.pathname + url.search + url.hash);
+    const data = await call("/auth/verify-login", { method: "POST", body: { token } });
+    if (data && data.token) sessionStorage.setItem(TOKEN_KEY, data.token);
   }
 
-  async function toggleActive() {
-    const g = selectedGroup();
-    if (!g) throw new Error("Select a group first.");
-    await call("/groups", { method: "PATCH", body: { groupId: g.id, active: !g.active } });
-    await loadGroups();
+  // ---- diagnostics -------------------------------------------------------
+
+  const CHECK_LABELS = [
+    ["adminEmailsConfigured", "Admin emails are configured", true],
+    ["sessionSecretConfigured", "Session secret is set", true],
+    ["sessionSecretUsingAdminKey", "Session secret differs from admin key", false],
+    ["resendConfigured", "Resend API key is set", true],
+    ["emailSenderConfigured", "Email sender is set", true],
+  ];
+
+  async function checkAuthConfig() {
+    const data = await call("/auth/debug");
+    const checks = data.checks || {};
+    $("diagChecks").replaceChildren(...CHECK_LABELS.map(([key, label, wantTrue]) => {
+      const good = wantTrue ? !!checks[key] : !checks[key];
+      return el("li", { className: good ? "" : "fail", textContent: label });
+    }));
+    $("diagStatus").className = `status ${data.ok ? "ok" : "warn"}`;
+    $("diagStatus").textContent = data.ok ? "Configuration looks good." : (data.issues || ["Configuration has issues."]).join(" ");
   }
 
-  async function addOrRemoveGroupAdmin(remove) {
-    const g = selectedGroup();
-    const email = String($("adminEmailTarget").value || "").trim().toLowerCase();
-    if (!g) throw new Error("Select a group first.");
-    if (!email) throw new Error("Enter an email.");
-    await call("/groups/admin", { method: remove ? "DELETE" : "POST", body: { groupId: g.id, email } });
-    await loadGroups();
+  async function testAccess() {
+    const data = await call("/admin");
+    $("diagStatus").className = `status ${data.admin ? "ok" : "warn"}`;
+    $("diagStatus").textContent = data.admin
+      ? `Signed in as ${data.email || "-"} (${data.globalAdmin ? "global admin" : "group admin"}).`
+      : "This session has no admin rights.";
   }
 
-  function wireButton(id, fn) {
-    $(id).addEventListener("click", async () => {
-      try {
-        await fn();
-      } catch (err) {
-        alert(err.message);
-      }
-    });
-  }
+  // ---- wiring ------------------------------------------------------------
 
-  $("groupSelect").addEventListener("change", updateGroupView);
-  wireButton("sendLoginLink", sendLoginLink);
-  wireButton("clearCreds", async () => {
-    await logout();
-    $("authStatus").textContent = "Logged out.";
+  $("loginForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const email = $("adminEmail").value.trim().toLowerCase();
+    run(async () => {
+      await call("/auth/request-login", { method: "POST", body: { email } });
+      setAuthStatus("If this email has admin access, a one-time login link has been sent.", "ok");
+    }, $("sendLoginLink"));
   });
-  wireButton("testCreds", testAccess);
-  wireButton("debugAuth", debugAuth);
-  wireButton("reloadGroups", loadGroups);
-  wireButton("createGroup", createGroup);
-  wireButton("saveGames", saveGames);
-  wireButton("toggleActive", toggleActive);
-  wireButton("addGroupAdmin", async () => addOrRemoveGroupAdmin(false));
-  wireButton("removeGroupAdmin", async () => addOrRemoveGroupAdmin(true));
 
-  maybeConsumeLoginToken().then(() => testAccess().then(loadGroups)).catch((err) => {
-    const el = $("authStatus");
-    el.className = "warn";
-    el.textContent = `Magic-link login failed: ${err.message}`;
+  $("logout").addEventListener("click", () => run(async () => {
+    await call("/auth/logout", { method: "POST" });
+    sessionStorage.removeItem(TOKEN_KEY);
+    me = { admin: false, globalAdmin: false, email: "" };
+    showLogin();
+    setAuthStatus("You have been logged out.");
+  }, $("logout")));
+
+  $("createForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const name = $("newGroupName").value.trim();
+    const slug = $("newGroupSlug").value.trim();
+    run(async () => {
+      await call("/groups", { method: "POST", body: { name, slug } });
+      $("newGroupName").value = "";
+      $("newGroupSlug").value = "";
+      await loadGroups();
+      toast("Group created");
+    }, e.submitter);
   });
+
+  $("testCreds").addEventListener("click", () => run(testAccess, $("testCreds")));
+  $("debugAuth").addEventListener("click", () => run(checkAuthConfig, $("debugAuth")));
+
+  (async () => {
+    try {
+      await consumeLoginToken();
+    } catch (err) {
+      showLogin();
+      setAuthStatus(`That login link did not work: ${err.message}. Request a new one.`, "warn");
+      return;
+    }
+    try {
+      await loadSession();
+    } catch (err) {
+      showLogin();
+      setAuthStatus(`Could not check your session: ${err.message}`, "warn");
+    }
+  })();
 })();
