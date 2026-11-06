@@ -590,7 +590,10 @@ async function removePlayer(request, env, url, db) {
 
 export async function onRequest(context) {
   const { request, env, params } = context;
-  const db = env.AUKSJON_DB;
+  const db = env.AUKSJON_DB
+    || env.securityawarenessmonth_minigames
+    || env.SECURITYAWARENESSMONTH_MINIGAMES
+    || env.MINIGAMES_DB;
   if (!db) return fail(503, "Leaderboard unavailable.");
   const route = "/" + [].concat(params.path || []).join("/");
   const url = new URL(request.url);
