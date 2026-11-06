@@ -210,29 +210,14 @@
     h.textContent = "Admin access";
     const p = document.createElement("p");
     p.className = "muted";
-    const currentAdmin = Board.adminCreds();
     p.textContent = info.admin
-      ? `Signed in as ${info.email || (currentAdmin && currentAdmin.email) || "admin user"}.`
-      : `Admin panel is hidden because this session is not recognized as admin. Configure admin API credentials to unlock admin actions.`;
+      ? `Signed in as ${info.email || "admin user"}.`
+      : "Admin panel is hidden because this session is not recognized as admin. Log in at /admin first.";
     hint.append(h, p);
-    const actions = document.createElement("p");
-    const setBtn = Object.assign(document.createElement("button"), { type: "button", textContent: "Set admin credentials" });
-    setBtn.addEventListener("click", () => {
-      const email = prompt("Enter admin email (must be allowed server-side)");
-      if (!email) return;
-      const key = prompt("Enter admin API key (SAM_MINIGAMES_ADMIN_KEY)");
-      if (!key) return;
-      Board.setAdminCreds(email, key);
-      location.reload();
-    });
-    const clearBtn = Object.assign(document.createElement("button"), { type: "button", textContent: "Clear admin credentials" });
-    clearBtn.style.marginLeft = "8px";
-    clearBtn.addEventListener("click", () => {
-      Board.clearAdminCreds();
-      location.reload();
-    });
-    actions.append(setBtn, clearBtn);
-    hint.append(actions);
+    const go = document.createElement("p");
+    const a = Object.assign(document.createElement("a"), { href: "/admin/", textContent: "Open admin login page" });
+    go.append(a);
+    hint.append(go);
     panel.replaceChildren(hint);
   }
 

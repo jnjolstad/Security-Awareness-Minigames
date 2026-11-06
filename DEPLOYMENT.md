@@ -22,8 +22,9 @@ Configure Pages Function environment variables:
 
 - `SAM_MINIGAMES_ADMIN_EMAILS` (comma-separated allowed admin emails)
 - `SAM_MINIGAMES_ADMIN_KEY` (strong random secret used as admin API key)
+- `SAM_MINIGAMES_SESSION_SECRET` (strong random secret for signing admin session cookies)
 
-The admin panel now requires both admin email + this API key; browser-set cookies are not used for admin authentication.
+The admin page (`/admin`) now uses admin email + API key login to create an HttpOnly signed session cookie; browser-set identity cookies are not used for admin authentication.
 
 ## Quick setup path (Cloudflare + GitHub)
 

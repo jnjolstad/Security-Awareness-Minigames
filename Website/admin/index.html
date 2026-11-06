@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin · Security Awareness Month</title>
+  <style>
+    body { font-family: Inter, Segoe UI, Arial, sans-serif; margin: 0; background: #0b1118; color: #d7e4f2; }
+    main { max-width: 980px; margin: 24px auto; padding: 0 16px 48px; }
+    h1 { margin: 0 0 8px; font-size: 30px; }
+    h2 { font-size: 20px; margin: 0 0 12px; }
+    .muted { color: #90a4b8; }
+    .card { background: #111a24; border: 1px solid #1b2a3a; border-radius: 12px; padding: 16px; margin-top: 16px; }
+    input, select, button { border-radius: 8px; border: 1px solid #294057; background: #0d1722; color: #e2eef9; padding: 8px 10px; }
+    button { cursor: pointer; background: #16314a; }
+    button.primary { background: #2d9e74; border-color: #2d9e74; color: #071611; font-weight: 600; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; align-items: center; }
+    .games { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin: 10px 0; }
+    label { display: inline-flex; gap: 6px; align-items: center; }
+    .ok { color: #8ff0c3; }
+    .warn { color: #ffd191; }
+  </style>
+  <script src="/security-awareness-month/minigames/catalog.js" defer></script>
+  <script src="admin.js" defer></script>
+</head>
+<body>
+  <main>
+    <h1>Mini-games admin</h1>
+    <p class="muted">Secure admin access for group management and game deployment.</p>
+
+    <section class="card">
+      <h2>Admin credentials</h2>
+      <div class="row">
+        <input id="adminEmail" type="email" placeholder="Admin email" size="32">
+        <input id="adminKey" type="password" placeholder="Admin API key" size="36">
+        <button class="primary" id="saveCreds">Log in</button>
+        <button id="clearCreds">Log out</button>
+        <button id="testCreds">Test access</button>
+      </div>
+      <p id="authStatus" class="muted">Not tested.</p>
+    </section>
+
+    <section class="card">
+      <h2>Create group</h2>
+      <div class="row">
+        <input id="newGroupName" type="text" placeholder="Group name" size="28">
+        <input id="newGroupSlug" type="text" placeholder="slug (optional)" size="20">
+        <button class="primary" id="createGroup">Create</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Edit group</h2>
+      <div class="row">
+        <select id="groupSelect"></select>
+        <button id="reloadGroups">Reload</button>
+      </div>
+      <p id="groupMeta" class="muted"></p>
+      <div class="games" id="games"></div>
+      <div class="row">
+        <button class="primary" id="saveGames">Save game deployment</button>
+        <button id="toggleActive">Toggle active</button>
+      </div>
+      <div class="row">
+        <input id="adminEmailTarget" type="email" placeholder="group admin email" size="30">
+        <button id="addGroupAdmin">Add group admin</button>
+        <button id="removeGroupAdmin">Remove group admin</button>
+      </div>
+      <p class="muted">Open board: <a id="boardLink" href="#" target="_blank" rel="noopener">-</a></p>
+    </section>
+  </main>
+</body>
+</html>

@@ -10,6 +10,7 @@ This is a prepare-only mapping sheet. Fill the "Target value" column before any 
 | Group admin records | `sam_mg_group_admins` table | SQL table `sam_mg_group_admins` |  | Preserve role model in new DB schema. |
 | Admin API key | n/a | `SAM_MINIGAMES_ADMIN_KEY` |  | Required for admin operations. |
 | Admin email allow-list | n/a | `SAM_MINIGAMES_ADMIN_EMAILS` |  | Comma-separated allowed admin emails. |
+| Admin session signing key | n/a | `SAM_MINIGAMES_SESSION_SECRET` |  | Signs HttpOnly admin session cookie. |
 | Environment name | Cloudflare Pages env | `AZURE_ENVIRONMENT` |  | Example: `staging` / `production`. |
 | Monitoring key | Cloudflare analytics | `APPLICATIONINSIGHTS_CONNECTION_STRING` |  | Required before cutover. |
 | CORS allow-list | Implicit same-origin | `CORS_ALLOWED_ORIGINS` |  | Explicit list for Azure API ingress. |

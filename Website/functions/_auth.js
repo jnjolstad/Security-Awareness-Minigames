@@ -1,6 +1,8 @@
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEFAULT_ADMIN_EMAILS = ["joar@njolstad.no"];
 const ADMIN_KEY_MIN_LEN = 24;
+const SESSION_COOKIE = "sam_admin_session";
+const SESSION_MAX_AGE = 60 * 60 * 8;
 
 function normalizeEmail(value) {
   const email = String(value || "").trim().toLowerCase();
@@ -39,18 +41,90 @@ function safeEqual(a, b) {
   return diff === 0;
 }
 
-function extractBearerToken(authHeader) {
-  const raw = String(authHeader || "");
-  const m = raw.match(/^Bearer\s+(.+)$/i);
-  return m ? m[1].trim() : "";
+function parseCookieMap(cookieHeader) {
+  const map = new Map();
+  const raw = String(cookieHeader || "");
+  if (!raw) return map;
+  for (const part of raw.split(";")) {
+    const idx = part.indexOf("=");
+    if (idx <= 0) continue;
+    const key = part.slice(0, idx).trim();
+    const value = part.slice(idx + 1).trim();
+    if (!key) continue;
+    map.set(key, value);
+  }
+  return map;
+}
+
+function toBase64Url(bytes) {
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function fromBase64Url(input) {
+  const base = String(input || "").replace(/-/g, "+").replace(/_/g, "/");
+  const pad = "=".repeat((4 - (base.length % 4)) % 4);
+  const bin = atob(base + pad);
+  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+}
+
+async function hmacSha256(secret, text) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(text));
+  return toBase64Url(new Uint8Array(sig));
+}
+
+function getSessionSecret(env) {
+  return String(env?.SAM_MINIGAMES_SESSION_SECRET || env?.SAM_MINIGAMES_ADMIN_KEY || "").trim();
+}
+
+export function verifyAdminLogin(email, key, env) {
+  const cleanEmail = normalizeEmail(email);
+  const configuredKey = String(env?.SAM_MINIGAMES_ADMIN_KEY || "").trim();
+  const providedKey = String(key || "").trim();
+  if (!cleanEmail || !isAdminEmail(cleanEmail, env)) return false;
+  if (configuredKey.length < ADMIN_KEY_MIN_LEN) return false;
+  if (providedKey.length !== configuredKey.length) return false;
+  return safeEqual(configuredKey, providedKey);
+}
+
+export async function buildAdminSessionCookie(email, env) {
+  const cleanEmail = normalizeEmail(email);
+  const secret = getSessionSecret(env);
+  if (!cleanEmail || !secret) return "";
+  const exp = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE;
+  const payload = `${cleanEmail}.${exp}`;
+  const token = `${toBase64Url(new TextEncoder().encode(payload))}.${await hmacSha256(secret, payload)}`;
+  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_MAX_AGE}`;
+}
+
+export function clearAdminSessionCookie() {
+  return `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
 }
 
 export async function getTrustedAdminEmail(request, env) {
-  const configuredKey = String(env?.SAM_MINIGAMES_ADMIN_KEY || "").trim();
-  if (configuredKey.length < ADMIN_KEY_MIN_LEN) return "";
-  const providedKey = extractBearerToken(request.headers.get("authorization"));
-  if (!providedKey || !safeEqual(configuredKey, providedKey)) return "";
-  const headerEmail = normalizeEmail(request.headers.get("x-admin-email"));
-  if (!headerEmail) return "";
-  return headerEmail;
+  const secret = getSessionSecret(env);
+  if (!secret) return "";
+  const cookies = parseCookieMap(request.headers.get("cookie"));
+  const tokenRaw = cookies.get(SESSION_COOKIE);
+  if (!tokenRaw) return "";
+  const token = decodeURIComponent(tokenRaw);
+  const parts = token.split(".");
+  if (parts.length !== 2) return "";
+  let payload = "";
+  try {
+    payload = new TextDecoder().decode(fromBase64Url(parts[0]));
+  } catch {
+    return "";
+  }
+  const sig = parts[1];
+  const expectedSig = await hmacSha256(secret, payload);
+  if (!safeEqual(sig, expectedSig)) return "";
+  const [email, expRaw] = payload.split(".");
+  const clean = normalizeEmail(email);
+  const exp = Number(expRaw || 0);
+  if (!clean || !Number.isFinite(exp) || exp < Math.floor(Date.now() / 1000)) return "";
+  if (!isAdminEmail(clean, env)) return "";
+  return clean;
 }

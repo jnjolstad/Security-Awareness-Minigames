@@ -9,7 +9,7 @@
 // Storage is D1 (AUKSJON_DB binding, tables prefixed sam_mg_), which keeps
 // the free tier's 1,000 KV writes/day for the escape room.
 
-import { getTrustedAdminEmail, isAdminEmail } from "../../_auth.js";
+import { buildAdminSessionCookie, clearAdminSessionCookie, getTrustedAdminEmail, isAdminEmail, verifyAdminLogin } from "../../_auth.js";
 import { GAMES } from "../_minigames-key.js";
 
 const POINTS = { wrong: 25, hint: 100, missed: 100 };
@@ -588,6 +588,34 @@ async function removePlayer(request, env, url, db) {
   return json({ ok: true });
 }
 
+async function loginAdmin(request, env) {
+  const body = await readJson(request);
+  const email = String(body && body.email || "");
+  const key = String(body && body.key || "");
+  if (!verifyAdminLogin(email, key, env)) return fail(403, "Invalid admin credentials.");
+  const cookie = await buildAdminSessionCookie(email, env);
+  if (!cookie) return fail(503, "Admin session is not configured.");
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      "set-cookie": cookie,
+    },
+  });
+}
+
+async function logoutAdmin() {
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      "set-cookie": clearAdminSessionCookie(),
+    },
+  });
+}
+
 export async function onRequest(context) {
   const { request, env, params } = context;
   const db = env.AUKSJON_DB
@@ -601,6 +629,8 @@ export async function onRequest(context) {
   try {
     await ensureSchema(db);
     if (route === "/board" && method === "GET") return await getBoard(url, db);
+    if (route === "/auth/login" && method === "POST") return await loginAdmin(request, env);
+    if (route === "/auth/logout" && method === "POST") return await logoutAdmin();
     if (route === "/group" && method === "GET") return await getGroupConfig(url, db);
     if (route === "/group/join" && method === "POST") return await joinGroup(request, db);
     if (route === "/player" && method === "POST") return await createPlayer(request, db);
