@@ -1,2 +1,3 @@
-/ /security-awareness-month/minigames/ 302
-
+/security-awareness-month/minigames/* /minigames/:splat 301
+/minigames/* /security-awareness-month/minigames/:splat 200
+/ /minigames/ 302

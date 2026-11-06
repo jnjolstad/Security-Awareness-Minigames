@@ -1,5 +1,5 @@
 param(
-  [string]$Url = "https://securityawarenessmonth.njolstad.no/security-awareness-month/minigames/leaderboard/leaderboard.js",
+  [string]$Url = "https://securityawarenessmonth.njolstad.no/minigames/leaderboard/leaderboard.js",
   [int]$TimeoutSec = 20
 )
 
