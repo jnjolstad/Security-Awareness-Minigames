@@ -202,6 +202,50 @@
     }
   }
 
+  function cookieValue(name) {
+    const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
+  function setSessionEmailCookie(email) {
+    document.cookie = `sam_session_email=${encodeURIComponent(email)}; Path=/; Max-Age=${60 * 60 * 12}; SameSite=Lax`;
+  }
+
+  function clearSessionEmailCookie() {
+    document.cookie = "sam_session_email=; Path=/; Max-Age=0; SameSite=Lax";
+  }
+
+  function renderAdminAccessHint(info) {
+    const panel = adminPanel();
+    const hint = Object.assign(document.createElement("section"), { className: "card-lite" });
+    const h = document.createElement("h2");
+    h.textContent = "Admin access";
+    const p = document.createElement("p");
+    p.className = "muted";
+    const currentEmail = cookieValue("sam_session_email");
+    p.textContent = info.admin
+      ? `Signed in as ${info.email || currentEmail || "admin user"}.`
+      : `Admin panel is hidden because this session is not recognized as admin. Current session email: ${currentEmail || "not set"}.`;
+    hint.append(h, p);
+    const actions = document.createElement("p");
+    const setBtn = Object.assign(document.createElement("button"), { type: "button", textContent: "Set session email" });
+    setBtn.addEventListener("click", () => {
+      const next = prompt("Enter your admin email");
+      if (!next) return;
+      setSessionEmailCookie(next.trim().toLowerCase());
+      location.reload();
+    });
+    const clearBtn = Object.assign(document.createElement("button"), { type: "button", textContent: "Clear session email" });
+    clearBtn.style.marginLeft = "8px";
+    clearBtn.addEventListener("click", () => {
+      clearSessionEmailCookie();
+      location.reload();
+    });
+    actions.append(setBtn, clearBtn);
+    hint.append(actions);
+    panel.replaceChildren(hint);
+  }
+
   async function load() {
     const tab = current();
     renderTabs(tab);
@@ -239,9 +283,14 @@
 
     try {
       adminInfo = await Board.call("/admin");
-      if (adminInfo.admin) await refreshGroups();
+      if (adminInfo.admin) {
+        await refreshGroups();
+      } else {
+        renderAdminAccessHint(adminInfo);
+      }
     } catch {
       adminInfo = { admin: false, globalAdmin: false, groups: [] };
+      renderAdminAccessHint(adminInfo);
     }
     await load();
   }

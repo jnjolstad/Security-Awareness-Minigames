@@ -181,7 +181,7 @@ async function enabledGamesForGroup(db, groupId) {
 async function actorContext(request, env, db) {
   const emailRaw = await getSessionEmailFromCookie(request, env);
   const email = String(emailRaw || "").trim().toLowerCase();
-  const globalAdmin = !!email && isAdminEmail(email);
+  const globalAdmin = !!email && isAdminEmail(email, env);
   const managed = email
     ? await db.prepare("SELECT group_id FROM sam_mg_group_admins WHERE email = ?").bind(email).all()
     : { results: [] };
