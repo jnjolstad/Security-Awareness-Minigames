@@ -20,9 +20,13 @@ The workflow now validates these up-front and fails with explicit errors if any 
 
 1. Cloudflare Pages -> your project -> **Settings -> Builds & deployments -> Source**.
 2. Connect source to `jnjolstad/SecurityAwarenessMonth` (`main`).
-3. In GitHub repo settings, add the 3 secrets listed above.
-4. Re-run the latest **Deploy Cloudflare Pages** workflow in GitHub Actions.
-5. Verify live script contains `adminPanelV2`:
+3. In Cloudflare Pages project settings, set:
+   - **Framework preset**: None
+   - **Build command**: *(empty)*
+   - **Build output directory**: `Website`
+4. Trigger a new deployment in Cloudflare Pages for `main`.
+5. (Optional) In GitHub repo settings, add the 3 secrets listed above if you want API-driven deploy from GitHub Actions too.
+6. Verify live script contains `adminPanelV2`:
    - `https://www.njolstad.no/security-awareness-month/minigames/leaderboard/leaderboard.js`
 
 ## Notes
