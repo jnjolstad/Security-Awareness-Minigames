@@ -9,6 +9,10 @@ function normalizeEmail(value) {
   return EMAIL_PATTERN.test(email) ? email : "";
 }
 
+export function normalizeAdminEmail(value) {
+  return normalizeEmail(value);
+}
+
 function readConfiguredAdmins(env) {
   const configured = String(
     (env && (env.SAM_MINIGAMES_ADMIN_EMAILS || env.ADMIN_EMAILS)) || "",
@@ -89,6 +93,8 @@ export function getAdminAuthDebug(env) {
     .filter(Boolean);
   const adminKey = String(env?.SAM_MINIGAMES_ADMIN_KEY || "").trim();
   const sessionSecret = String(env?.SAM_MINIGAMES_SESSION_SECRET || "").trim();
+  const resendApiKey = String(env?.RESEND_API_KEY || "").trim();
+  const fromEmail = normalizeEmail(env?.SAM_MINIGAMES_EMAIL_FROM || env?.ADMIN_MAGICLINK_FROM || "");
   const checks = {
     adminEmailsConfigured: configuredAdmins.length > 0,
     usingDefaultAdminFallback: configuredAdmins.length === 0,
@@ -96,13 +102,15 @@ export function getAdminAuthDebug(env) {
     adminKeyStrongEnough: adminKey.length >= ADMIN_KEY_MIN_LEN,
     sessionSecretConfigured: sessionSecret.length > 0,
     sessionSecretUsingAdminKey: sessionSecret.length > 0 && adminKey.length > 0 && safeEqual(sessionSecret, adminKey),
+    resendConfigured: resendApiKey.length > 0,
+    emailSenderConfigured: !!fromEmail,
   };
   const issues = [];
   if (!checks.adminEmailsConfigured) issues.push("SAM_MINIGAMES_ADMIN_EMAILS is empty; default fallback list is active.");
-  if (!checks.adminKeyConfigured) issues.push("SAM_MINIGAMES_ADMIN_KEY is missing.");
-  if (checks.adminKeyConfigured && !checks.adminKeyStrongEnough) issues.push(`SAM_MINIGAMES_ADMIN_KEY is too short (minimum ${ADMIN_KEY_MIN_LEN} characters).`);
   if (!checks.sessionSecretConfigured) issues.push("SAM_MINIGAMES_SESSION_SECRET is missing.");
   if (checks.sessionSecretUsingAdminKey) issues.push("SAM_MINIGAMES_SESSION_SECRET should be different from SAM_MINIGAMES_ADMIN_KEY.");
+  if (!checks.resendConfigured) issues.push("RESEND_API_KEY is missing (required for email-only admin login).");
+  if (!checks.emailSenderConfigured) issues.push("SAM_MINIGAMES_EMAIL_FROM is missing (required for email-only admin login).");
   return { ok: issues.length === 0, checks, issues };
 }
 
@@ -162,7 +170,6 @@ async function verifySessionToken(token, env) {
   const clean = normalizeEmail(email);
   const exp = Number(expRaw || 0);
   if (!clean || !Number.isFinite(exp) || exp < Math.floor(Date.now() / 1000)) return "";
-  if (!isAdminEmail(clean, env)) return "";
   return clean;
 }
 

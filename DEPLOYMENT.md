@@ -21,10 +21,17 @@ The workflow now validates these up-front and fails with explicit errors if any 
 Configure Pages Function environment variables:
 
 - `SAM_MINIGAMES_ADMIN_EMAILS` (comma-separated allowed admin emails)
-- `SAM_MINIGAMES_ADMIN_KEY` (strong random secret used as admin API key)
 - `SAM_MINIGAMES_SESSION_SECRET` (strong random secret for signing admin session cookies)
+- `RESEND_API_KEY` (Resend API key used to send one-time admin login links)
+- `SAM_MINIGAMES_EMAIL_FROM` (verified sender, e.g. `Security Awareness <security@njolstad.no>`)
 
-The admin page (`/admin`) now uses admin email + API key login to create an HttpOnly signed session cookie; browser-set identity cookies are not used for admin authentication.
+The admin page (`/admin`) now uses **email-only magic-link login**:
+
+1. Admin enters email.
+2. API sends one-time link by email (15 minute expiry, single-use).
+3. Link verification creates an HttpOnly signed session cookie.
+
+Global admins come from `SAM_MINIGAMES_ADMIN_EMAILS`; group admins added in the UI can also log in by email-only and are scoped to their group permissions.
 
 For troubleshooting, use:
 

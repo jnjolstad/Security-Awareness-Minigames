@@ -9,7 +9,7 @@
 // Storage is D1 (AUKSJON_DB binding, tables prefixed sam_mg_), which keeps
 // the free tier's 1,000 KV writes/day for the escape room.
 
-import { buildAdminSessionCookie, buildAdminSessionToken, clearAdminSessionCookie, getAdminAuthDebug, getTrustedAdminEmail, isAdminEmail, verifyAdminLogin } from "../../_auth.js";
+import { buildAdminSessionCookie, buildAdminSessionToken, clearAdminSessionCookie, getAdminAuthDebug, getTrustedAdminEmail, isAdminEmail, normalizeAdminEmail, verifyAdminLogin } from "../../_auth.js";
 import { GAMES } from "../_minigames-key.js";
 
 const POINTS = { wrong: 25, hint: 100, missed: 100 };
@@ -23,6 +23,7 @@ const RUN_TTL_MS = 30 * 60 * 1000;
 const MAX_NEW_PLAYERS_PER_IP_HOUR = 10;
 const TOP = 10;
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,31}$/;
+const ADMIN_LOGIN_TTL_MS = 15 * 60 * 1000;
 
 const NAME_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N} ._-]{1,19}$/u;
 const BLOCKED_TERMS = [
@@ -59,6 +60,10 @@ const SCHEMA = [
      updated_at INTEGER NOT NULL, updated_by TEXT,
      PRIMARY KEY (group_id, game))`,
   `CREATE INDEX IF NOT EXISTS sam_mg_group_games_group ON sam_mg_group_games (group_id, enabled)`,
+  `CREATE TABLE IF NOT EXISTS sam_mg_admin_login_tokens (
+     id TEXT PRIMARY KEY, email TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE,
+     created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER)`,
+  `CREATE INDEX IF NOT EXISTS sam_mg_admin_login_tokens_exp ON sam_mg_admin_login_tokens (expires_at, used_at)`,
 ];
 const GAME_IDS = Object.keys(GAMES);
 
@@ -187,6 +192,41 @@ async function actorContext(request, env, db) {
     : { results: [] };
   const groupIds = new Set((managed.results || []).map((r) => r.group_id));
   return { email, globalAdmin, groupIds, admin: globalAdmin || groupIds.size > 0 };
+}
+
+async function canEmailAdmin(email, env, db) {
+  const clean = normalizeAdminEmail(email);
+  if (!clean) return false;
+  if (isAdminEmail(clean, env)) return true;
+  const row = await db.prepare("SELECT 1 AS ok FROM sam_mg_group_admins WHERE email = ? LIMIT 1").bind(clean).first();
+  return !!(row && row.ok);
+}
+
+async function sendAdminMagicLink(email, token, env, origin) {
+  const resendApiKey = String(env?.RESEND_API_KEY || "").trim();
+  const fromEmail = String(env?.SAM_MINIGAMES_EMAIL_FROM || env?.ADMIN_MAGICLINK_FROM || "").trim();
+  if (!resendApiKey || !fromEmail) return fail(503, "Email login is not configured on the server.");
+  const link = `${origin}/admin/?login_token=${encodeURIComponent(token)}`;
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${resendApiKey}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      from: fromEmail,
+      to: [email],
+      subject: "Your Security Awareness Month admin login link",
+      html: `<p>Use this one-time login link for Security Awareness Month admin access:</p><p><a href="${link}">${link}</a></p><p>The link expires in 15 minutes.</p>`,
+      text: `Use this one-time login link for Security Awareness Month admin access: ${link}\n\nThe link expires in 15 minutes.`,
+    }),
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    console.error("resend send failed", response.status, detail);
+    return fail(502, "Unable to send login email right now.");
+  }
+  return null;
 }
 
 function canManageGroup(actor, groupId) {
@@ -618,6 +658,51 @@ async function loginAdmin(request, env) {
   });
 }
 
+async function requestAdminLogin(request, env, db) {
+  const body = await readJson(request);
+  const email = normalizeAdminEmail(body && body.email);
+  if (!email) return fail(400, "Enter a valid email.");
+  const authorized = await canEmailAdmin(email, env, db);
+  if (!authorized) return json({ ok: true });
+  const now = Date.now();
+  const token = randomHex(24);
+  const tokenHash = await sha256("sam-admin-login:" + token);
+  await db.batch([
+    db.prepare("DELETE FROM sam_mg_admin_login_tokens WHERE expires_at < ? OR used_at IS NOT NULL").bind(now),
+    db.prepare("INSERT INTO sam_mg_admin_login_tokens (id, email, token_hash, created_at, expires_at, used_at) VALUES (?, ?, ?, ?, ?, NULL)")
+      .bind(randomHex(12), email, tokenHash, now, now + ADMIN_LOGIN_TTL_MS),
+  ]);
+  const sendError = await sendAdminMagicLink(email, token, env, new URL(request.url).origin);
+  if (sendError) return sendError;
+  return json({ ok: true });
+}
+
+async function verifyAdminLoginToken(request, env, db) {
+  const body = await readJson(request);
+  const token = String(body && body.token || "").trim();
+  if (!/^[0-9a-f]{48}$/.test(token)) return fail(400, "Invalid login token.");
+  const tokenHash = await sha256("sam-admin-login:" + token);
+  const now = Date.now();
+  const row = await db.prepare(
+    "SELECT id, email FROM sam_mg_admin_login_tokens WHERE token_hash = ? AND used_at IS NULL AND expires_at >= ? LIMIT 1",
+  ).bind(tokenHash, now).first();
+  if (!row) return fail(400, "Login link is invalid or has expired.");
+  if (!await canEmailAdmin(row.email, env, db)) return fail(403, "This email no longer has admin access.");
+  const used = await db.prepare("UPDATE sam_mg_admin_login_tokens SET used_at = ? WHERE id = ? AND used_at IS NULL").bind(now, row.id).run();
+  if (!used.meta || used.meta.changes !== 1) return fail(409, "Login link already used.");
+  const cookie = await buildAdminSessionCookie(row.email, env);
+  const signedToken = await buildAdminSessionToken(row.email, env);
+  if (!cookie || !signedToken) return fail(503, "Admin session is not configured.");
+  return new Response(JSON.stringify({ ok: true, token: signedToken }), {
+    status: 200,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      "set-cookie": cookie,
+    },
+  });
+}
+
 async function logoutAdmin() {
   return new Response(JSON.stringify({ ok: true }), {
     status: 200,
@@ -651,6 +736,8 @@ export async function onRequest(context) {
   try {
     await ensureSchema(db);
     if (route === "/board" && method === "GET") return await getBoard(url, db);
+    if (route === "/auth/request-login" && method === "POST") return await requestAdminLogin(request, env, db);
+    if (route === "/auth/verify-login" && method === "POST") return await verifyAdminLoginToken(request, env, db);
     if (route === "/auth/login" && method === "POST") return await loginAdmin(request, env);
     if (route === "/auth/logout" && method === "POST") return await logoutAdmin();
     if (route === "/auth/debug" && method === "GET") return await debugAdminAuth(request, env);

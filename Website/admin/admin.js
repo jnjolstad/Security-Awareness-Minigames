@@ -19,12 +19,31 @@
     return data;
   }
 
-  async function login() {
+  async function sendLoginLink() {
     const email = String($("adminEmail").value || "").trim().toLowerCase();
-    const key = String($("adminKey").value || "").trim();
-    if (!email || !key) throw new Error("Enter both admin email and admin key.");
-    const data = await call("/auth/login", { method: "POST", body: { email, key } });
+    if (!email) throw new Error("Enter your admin email.");
+    await call("/auth/request-login", { method: "POST", body: { email } });
+    const el = $("authStatus");
+    el.className = "ok";
+    el.textContent = "If this email has admin access, a one-time login link has been sent.";
+  }
+
+  async function verifyLoginToken(token) {
+    const data = await call("/auth/verify-login", { method: "POST", body: { token } });
     if (data && data.token) sessionStorage.setItem(TOKEN_KEY, data.token);
+  }
+
+  async function maybeConsumeLoginToken() {
+    const url = new URL(location.href);
+    const token = String(url.searchParams.get("login_token") || "").trim();
+    if (!token) return false;
+    await verifyLoginToken(token);
+    url.searchParams.delete("login_token");
+    history.replaceState({}, "", url.pathname + (url.search ? url.search : "") + url.hash);
+    const el = $("authStatus");
+    el.className = "ok";
+    el.textContent = "Login link verified. You are signed in.";
+    return true;
   }
 
   async function logout() {
@@ -54,8 +73,8 @@
       if (!data.ok) details.push("Auth config has issues.");
       if (Array.isArray(data.issues) && data.issues.length) details.push(...data.issues);
       details.push(`adminEmailsConfigured=${data.checks && data.checks.adminEmailsConfigured ? "yes" : "no"}`);
-      details.push(`adminKeyConfigured=${data.checks && data.checks.adminKeyConfigured ? "yes" : "no"}`);
-      details.push(`adminKeyStrongEnough=${data.checks && data.checks.adminKeyStrongEnough ? "yes" : "no"}`);
+      details.push(`resendConfigured=${data.checks && data.checks.resendConfigured ? "yes" : "no"}`);
+      details.push(`emailSenderConfigured=${data.checks && data.checks.emailSenderConfigured ? "yes" : "no"}`);
       details.push(`sessionSecretConfigured=${data.checks && data.checks.sessionSecretConfigured ? "yes" : "no"}`);
       details.push(`sessionSecretUsingAdminKey=${data.checks && data.checks.sessionSecretUsingAdminKey ? "yes" : "no"}`);
       details.push(`currentSessionEmail=${data.currentSessionEmail || "-"}`);
@@ -156,10 +175,9 @@
   }
 
   $("groupSelect").addEventListener("change", updateGroupView);
-  wireButton("saveCreds", async () => { await login(); await testAccess(); await loadGroups(); });
+  wireButton("sendLoginLink", sendLoginLink);
   wireButton("clearCreds", async () => {
     await logout();
-    $("adminKey").value = "";
     $("authStatus").textContent = "Logged out.";
   });
   wireButton("testCreds", testAccess);
@@ -171,5 +189,9 @@
   wireButton("addGroupAdmin", async () => addOrRemoveGroupAdmin(false));
   wireButton("removeGroupAdmin", async () => addOrRemoveGroupAdmin(true));
 
-  testAccess().then(loadGroups).catch(() => {});
+  maybeConsumeLoginToken().then(() => testAccess().then(loadGroups)).catch((err) => {
+    const el = $("authStatus");
+    el.className = "warn";
+    el.textContent = `Magic-link login failed: ${err.message}`;
+  });
 })();

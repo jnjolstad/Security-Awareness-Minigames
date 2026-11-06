@@ -33,7 +33,7 @@
     }
   </style>
   <script src="/security-awareness-month/minigames/catalog.js" defer></script>
-  <script src="admin.js?v=20261106-3" defer></script>
+  <script src="admin.js?v=20261106-4" defer></script>
 </head>
 <body>
   <main>
@@ -41,16 +41,15 @@
     <p class="muted">Secure admin access for group management and game deployment.</p>
 
     <section class="card">
-      <h2>Admin credentials</h2>
+      <h2>Admin login</h2>
       <div class="row">
         <input id="adminEmail" type="email" placeholder="Admin email" size="32">
-        <input id="adminKey" type="password" placeholder="Admin API key" size="36">
-        <button class="primary" id="saveCreds">Log in</button>
+        <button class="primary" id="sendLoginLink">Send login link</button>
         <button id="clearCreds">Log out</button>
         <button id="testCreds">Test access</button>
         <button id="debugAuth">Debug auth config</button>
       </div>
-      <p id="authStatus" class="muted">Not tested.</p>
+      <p id="authStatus" class="muted">Enter your admin email to receive a one-time login link.</p>
       <p id="debugStatus" class="muted"></p>
     </section>
 
