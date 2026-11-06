@@ -9,7 +9,7 @@
 // Storage is D1 (AUKSJON_DB binding, tables prefixed sam_mg_), which keeps
 // the free tier's 1,000 KV writes/day for the escape room.
 
-import { getSessionEmailFromCookie, isAdminEmail } from "../../_auth.js";
+import { getTrustedAdminEmail, isAdminEmail } from "../../_auth.js";
 import { GAMES } from "../_minigames-key.js";
 
 const POINTS = { wrong: 25, hint: 100, missed: 100 };
@@ -179,7 +179,7 @@ async function enabledGamesForGroup(db, groupId) {
 }
 
 async function actorContext(request, env, db) {
-  const emailRaw = await getSessionEmailFromCookie(request, env);
+  const emailRaw = await getTrustedAdminEmail(request, env);
   const email = String(emailRaw || "").trim().toLowerCase();
   const globalAdmin = !!email && isAdminEmail(email, env);
   const managed = email

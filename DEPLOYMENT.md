@@ -16,6 +16,15 @@ Configure these repository secrets in `jnjolstad/SecurityAwarenessMonth`:
 
 The workflow now validates these up-front and fails with explicit errors if any are missing.
 
+## Admin security configuration (required for admin panel)
+
+Configure Pages Function environment variables:
+
+- `SAM_MINIGAMES_ADMIN_EMAILS` (comma-separated allowed admin emails)
+- `SAM_MINIGAMES_ADMIN_KEY` (strong random secret used as admin API key)
+
+The admin panel now requires both admin email + this API key; browser-set cookies are not used for admin authentication.
+
 ## Quick setup path (Cloudflare + GitHub)
 
 1. Cloudflare Pages -> your project -> **Settings -> Builds & deployments -> Source**.

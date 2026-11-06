@@ -203,19 +203,6 @@
     }
   }
 
-  function cookieValue(name) {
-    const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-    return match ? decodeURIComponent(match[1]) : "";
-  }
-
-  function setSessionEmailCookie(email) {
-    document.cookie = `sam_session_email=${encodeURIComponent(email)}; Path=/; Max-Age=${60 * 60 * 12}; SameSite=Lax`;
-  }
-
-  function clearSessionEmailCookie() {
-    document.cookie = "sam_session_email=; Path=/; Max-Age=0; SameSite=Lax";
-  }
-
   function renderAdminAccessHint(info) {
     const panel = adminPanel();
     const hint = Object.assign(document.createElement("section"), { className: "card-lite" });
@@ -223,23 +210,25 @@
     h.textContent = "Admin access";
     const p = document.createElement("p");
     p.className = "muted";
-    const currentEmail = cookieValue("sam_session_email");
+    const currentAdmin = Board.adminCreds();
     p.textContent = info.admin
-      ? `Signed in as ${info.email || currentEmail || "admin user"}.`
-      : `Admin panel is hidden because this session is not recognized as admin. Current session email: ${currentEmail || "not set"}.`;
+      ? `Signed in as ${info.email || (currentAdmin && currentAdmin.email) || "admin user"}.`
+      : `Admin panel is hidden because this session is not recognized as admin. Configure admin API credentials to unlock admin actions.`;
     hint.append(h, p);
     const actions = document.createElement("p");
-    const setBtn = Object.assign(document.createElement("button"), { type: "button", textContent: "Set session email" });
+    const setBtn = Object.assign(document.createElement("button"), { type: "button", textContent: "Set admin credentials" });
     setBtn.addEventListener("click", () => {
-      const next = prompt("Enter your admin email");
-      if (!next) return;
-      setSessionEmailCookie(next.trim().toLowerCase());
+      const email = prompt("Enter admin email (must be allowed server-side)");
+      if (!email) return;
+      const key = prompt("Enter admin API key (SAM_MINIGAMES_ADMIN_KEY)");
+      if (!key) return;
+      Board.setAdminCreds(email, key);
       location.reload();
     });
-    const clearBtn = Object.assign(document.createElement("button"), { type: "button", textContent: "Clear session email" });
+    const clearBtn = Object.assign(document.createElement("button"), { type: "button", textContent: "Clear admin credentials" });
     clearBtn.style.marginLeft = "8px";
     clearBtn.addEventListener("click", () => {
-      clearSessionEmailCookie();
+      Board.clearAdminCreds();
       location.reload();
     });
     actions.append(setBtn, clearBtn);

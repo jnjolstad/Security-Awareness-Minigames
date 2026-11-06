@@ -1,20 +1,6 @@
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEFAULT_ADMIN_EMAILS = ["joar@njolstad.no"];
-
-function parseCookieMap(cookieHeader) {
-  const map = new Map();
-  const raw = String(cookieHeader || "");
-  if (!raw) return map;
-  for (const part of raw.split(";")) {
-    const idx = part.indexOf("=");
-    if (idx <= 0) continue;
-    const key = part.slice(0, idx).trim();
-    const value = part.slice(idx + 1).trim();
-    if (!key) continue;
-    map.set(key, value);
-  }
-  return map;
-}
+const ADMIN_KEY_MIN_LEN = 24;
 
 function normalizeEmail(value) {
   const email = String(value || "").trim().toLowerCase();
@@ -46,18 +32,25 @@ export function isAdminEmail(email, env) {
   return readConfiguredAdmins(env).has(clean);
 }
 
-export async function getSessionEmailFromCookie(request, env) {
-  const headerEmail = normalizeEmail(
-    request.headers.get("x-ms-client-principal-name")
-    || request.headers.get("x-auth-request-email")
-    || request.headers.get("x-user-email"),
-  );
-  if (headerEmail) return headerEmail;
+function safeEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
 
-  const cookies = parseCookieMap(request.headers.get("cookie"));
-  return normalizeEmail(
-    cookies.get("sam_session_email")
-    || cookies.get("session_email")
-    || "",
-  );
+function extractBearerToken(authHeader) {
+  const raw = String(authHeader || "");
+  const m = raw.match(/^Bearer\s+(.+)$/i);
+  return m ? m[1].trim() : "";
+}
+
+export async function getTrustedAdminEmail(request, env) {
+  const configuredKey = String(env?.SAM_MINIGAMES_ADMIN_KEY || "").trim();
+  if (configuredKey.length < ADMIN_KEY_MIN_LEN) return "";
+  const providedKey = extractBearerToken(request.headers.get("authorization"));
+  if (!providedKey || !safeEqual(configuredKey, providedKey)) return "";
+  const headerEmail = normalizeEmail(request.headers.get("x-admin-email"));
+  if (!headerEmail) return "";
+  return headerEmail;
 }

@@ -8,7 +8,8 @@ This is a prepare-only mapping sheet. Fill the "Target value" column before any 
 | DB binding name (Cloudflare) | `AUKSJON_DB` | `AZURE_SQL_CONNECTION_STRING` |  | Store in Key Vault/app settings, not in code. |
 | Global admin list | Cloudflare auth + email checks | `SAM_MINIGAMES_ADMIN_EMAILS` |  | Comma-separated lowercased emails. |
 | Group admin records | `sam_mg_group_admins` table | SQL table `sam_mg_group_admins` |  | Preserve role model in new DB schema. |
-| Client principal email header | n/a (provider-specific) | `x-ms-client-principal-name` |  | Fallback supported in `_auth.js`. |
+| Admin API key | n/a | `SAM_MINIGAMES_ADMIN_KEY` |  | Required for admin operations. |
+| Admin email allow-list | n/a | `SAM_MINIGAMES_ADMIN_EMAILS` |  | Comma-separated allowed admin emails. |
 | Environment name | Cloudflare Pages env | `AZURE_ENVIRONMENT` |  | Example: `staging` / `production`. |
 | Monitoring key | Cloudflare analytics | `APPLICATIONINSIGHTS_CONNECTION_STRING` |  | Required before cutover. |
 | CORS allow-list | Implicit same-origin | `CORS_ALLOWED_ORIGINS` |  | Explicit list for Azure API ingress. |
@@ -28,4 +29,3 @@ This is a prepare-only mapping sheet. Fill the "Target value" column before any 
 - Keep same nickname rules: [ ] yes [ ] no
 - Keep same game URLs: [ ] yes [ ] no
 - Global+group admin enabled at launch: [ ] yes [ ] no
-

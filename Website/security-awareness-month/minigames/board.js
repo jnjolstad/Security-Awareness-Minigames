@@ -3,6 +3,8 @@
 window.Board = (() => {
   const API = window.MINIGAMES.api;
   const PLAYER_KEY = "minigames:player";
+  const ADMIN_KEY = "minigames:admin-key";
+  const ADMIN_EMAIL = "minigames:admin-email";
   const MEDALS = ["🥇", "🥈", "🥉"];
   const GROUP_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,31}$/;
 
@@ -24,10 +26,39 @@ window.Board = (() => {
     try { localStorage.removeItem(PLAYER_KEY); } catch { /* storage unavailable */ }
   }
 
+  function adminCreds() {
+    try {
+      const key = String(sessionStorage.getItem(ADMIN_KEY) || "").trim();
+      const email = String(sessionStorage.getItem(ADMIN_EMAIL) || "").trim().toLowerCase();
+      return key && email ? { key, email } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function setAdminCreds(email, key) {
+    try {
+      sessionStorage.setItem(ADMIN_EMAIL, String(email || "").trim().toLowerCase());
+      sessionStorage.setItem(ADMIN_KEY, String(key || "").trim());
+    } catch { /* storage unavailable */ }
+  }
+
+  function clearAdminCreds() {
+    try {
+      sessionStorage.removeItem(ADMIN_EMAIL);
+      sessionStorage.removeItem(ADMIN_KEY);
+    } catch { /* storage unavailable */ }
+  }
+
   async function call(path, { method = "GET", body } = {}) {
     const p = player();
     const headers = { "content-type": "application/json" };
     if (p) { headers["x-player"] = p.id; headers["x-player-key"] = p.key; }
+    const admin = adminCreds();
+    if (admin) {
+      headers.authorization = `Bearer ${admin.key}`;
+      headers["x-admin-email"] = admin.email;
+    }
     const res = await fetch(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined, credentials: "same-origin" });
     let data = {};
     try { data = await res.json(); } catch { /* empty body */ }
@@ -136,5 +167,5 @@ window.Board = (() => {
     return wrap;
   }
 
-  return { player, forget, register, start, finish, get, joinGroup, group, table, seconds, call, order };
+  return { player, forget, register, start, finish, get, joinGroup, group, table, seconds, call, order, adminCreds, setAdminCreds, clearAdminCreds };
 })();
