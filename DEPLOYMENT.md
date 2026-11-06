@@ -26,8 +26,12 @@ The workflow now validates these up-front and fails with explicit errors if any 
    - **Build output directory**: `Website`
 4. Trigger a new deployment in Cloudflare Pages for `main`.
 5. (Optional) In GitHub repo settings, add the 3 secrets listed above if you want API-driven deploy from GitHub Actions too.
-6. Verify live script contains `adminPanelV2`:
-   - `https://www.njolstad.no/security-awareness-month/minigames/leaderboard/leaderboard.js`
+6. Add custom domain for this project:
+   - `securityawarenessmonth.njolstad.no`
+7. Verify live script contains `adminPanelV2`:
+   - `https://securityawarenessmonth.njolstad.no/security-awareness-month/minigames/leaderboard/leaderboard.js`
+
+If you want to keep `www.njolstad.no` for other content, do not attach `www` to this Pages project.
 
 ## Notes
 
