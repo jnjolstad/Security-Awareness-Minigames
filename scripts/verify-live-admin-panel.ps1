@@ -1,11 +1,11 @@
 param(
-  [string]$Url = "https://securityawarenessmonth.njolstad.no/minigames/leaderboard/leaderboard.js",
+  [string]$Url = "https://securityawarenessmonth.njolstad.no/admin/admin.js",
   [int]$TimeoutSec = 20
 )
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "Checking live leaderboard script..." -ForegroundColor Cyan
+Write-Host "Checking live admin script..." -ForegroundColor Cyan
 Write-Host "URL: $Url"
 
 try {
@@ -17,15 +17,13 @@ try {
 }
 $content = [string]$res.Content
 
-$hasAdminPanel = $content.Contains("adminPanelV2")
-$hasMarker = $content.Contains("build-marker: admin-panel-v2-2026-11-06")
+$hasMarker = $content.Contains("build-marker: admin-panel-v3-2026-11-06")
 
-if ($hasAdminPanel -and $hasMarker) {
+if ($hasMarker) {
   Write-Host "OK: Live site has the new admin panel build." -ForegroundColor Green
   exit 0
 }
 
 Write-Host "NOT READY: Live site is still serving old script." -ForegroundColor Yellow
-if (-not $hasAdminPanel) { Write-Host "- Missing adminPanelV2 marker." -ForegroundColor Yellow }
-if (-not $hasMarker) { Write-Host "- Missing build-marker: admin-panel-v2-2026-11-06." -ForegroundColor Yellow }
+if (-not $hasMarker) { Write-Host "- Missing build-marker: admin-panel-v3-2026-11-06." -ForegroundColor Yellow }
 exit 2

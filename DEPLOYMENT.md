@@ -47,18 +47,31 @@ This endpoint is safe to share in logs because it returns only booleans/flags (n
 3. In Cloudflare Pages project settings, set:
    - **Framework preset**: None
    - **Build command**: *(empty)*
-   - **Build output directory**: `Website`
+   - **Root directory**: `Website` (the name is case-sensitive, and `functions/` must be inside the root directory for the API to deploy)
+   - **Build output directory**: *(empty)*
 4. Trigger a new deployment in Cloudflare Pages for `main`.
 5. (Optional) In GitHub repo settings, add the 3 secrets listed above if you want API-driven deploy from GitHub Actions too.
 6. Add custom domain for this project:
    - `securityawarenessmonth.njolstad.no`
-7. Verify live script contains `adminPanelV2`:
-   - `https://securityawarenessmonth.njolstad.no/security-awareness-month/minigames/leaderboard/leaderboard.js`
+7. Verify the live admin script contains `admin-panel-v3`:
+   - `https://securityawarenessmonth.njolstad.no/admin/admin.js`
 
 If you want to keep `www.njolstad.no` for other content, do not attach `www` to this Pages project.
+
+## Cloudflare Pages bindings and variables
+
+Set these under the Pages project's **Settings -> Bindings** and **Variables and Secrets** (Production, and Preview if used). They are applied on the next deployment.
+
+- D1 binding `AUKSJON_DB` (the leaderboard tables are prefixed `sam_mg_` and are created automatically)
+- `SAM_MINIGAMES_ADMIN_EMAILS` (comma-separated global admins)
+- `SAM_MINIGAMES_ADMIN_KEY` (secret, at least 24 characters)
+- `SAM_MINIGAMES_SESSION_SECRET` (secret, different from the admin key)
+- `RESEND_API_KEY` (secret) and `SAM_MINIGAMES_EMAIL_FROM` (a sender verified in Resend), used for admin login links
+
+The admin page has a **Diagnostics** section that shows which of these are missing.
 
 ## Notes
 
 - The published site must use this repository/workflow to serve new code.
 - If the live page still shows old JavaScript after a successful run, do a hard refresh (`Ctrl+F5`) or append a cache-buster query.
-- To verify the admin-panel build is live, check that the served leaderboard script contains `adminPanelV2`.
+- To verify the admin-panel build is live, check that the served `/admin/admin.js` contains `admin-panel-v3`.

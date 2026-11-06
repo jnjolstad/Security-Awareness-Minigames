@@ -9,6 +9,7 @@ Set-Location $repoRoot
 
 $required = @(
   "Website\security-awareness-month\minigames\leaderboard\leaderboard.js",
+  "Website\admin\admin.js",
   "Website\security-awareness-month\minigames\board.js",
   "Website\functions\security-awareness-month\minigames-api\[[path]].js",
   "Website\functions\_auth.js"
@@ -20,9 +21,9 @@ foreach ($file in $required) {
   }
 }
 
-$leaderboard = Get-Content -LiteralPath "Website\security-awareness-month\minigames\leaderboard\leaderboard.js" -Raw
-if ($leaderboard -notmatch "adminPanelV2") {
-  throw "leaderboard.js does not contain adminPanelV2. Refusing to package."
+$adminScript = Get-Content -LiteralPath "Website\admin\admin.js" -Raw
+if ($adminScript -notmatch "admin-panel-v3") {
+  throw "admin.js does not contain the admin-panel-v3 marker. Refusing to package."
 }
 
 $staging = Join-Path $env:TEMP ("sam-manual-deploy-" + [guid]::NewGuid().ToString("N"))
@@ -35,7 +36,7 @@ try {
   }
   Compress-Archive -Path (Join-Path $staging "*") -DestinationPath $OutputZip -Force
   Write-Host "Created package: $OutputZip" -ForegroundColor Green
-  Write-Host "Contains updated admin panel files (adminPanelV2)." -ForegroundColor Green
+  Write-Host "Contains updated admin panel files (admin-panel-v3)." -ForegroundColor Green
 } finally {
   if (Test-Path -LiteralPath $staging) {
     Remove-Item -LiteralPath $staging -Recurse -Force
