@@ -77,11 +77,21 @@
     .checks li::before { content:"✓ "; color:var(--green-text); }
     .checks li.fail::before { content:"! "; color:var(--amber); }
     .checks li.fail { color:var(--amber); }
+    button.danger { background:transparent; border-color:#6b2a35; color:var(--red); }
+    button.danger:hover:enabled { background:#3a1a22; }
+    button.danger-solid { background:#b3414f; border-color:#b3414f; color:#fff; font-weight:650; }
+    button.danger-solid:hover:enabled { background:#c9505f; }
+    .danger-zone { margin-top:18px; padding-top:14px; border-top:1px solid var(--line); text-align:right; }
+    dialog { background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:12px; padding:20px; max-width:440px; width:calc(100% - 32px); }
+    dialog::backdrop { background:#000a; }
+    dialog h2 { margin-top:0; }
+    dialog code { color:var(--amber); }
+    dialog .row { justify-content:flex-end; margin-top:16px; }
     [hidden] { display:none !important; }
     @media (max-width:520px) { .link-row .label { width:100%; } }
   </style>
   <script src="/security-awareness-month/minigames/catalog.js" defer></script>
-  <script src="admin.js?v=20261106-5" defer></script>
+  <script src="admin.js?v=20261106-6" defer></script>
 </head>
 <body>
   <main>
@@ -126,6 +136,18 @@
       </section>
     </div>
   </main>
+  <dialog id="deleteDialog" aria-labelledby="deleteTitle">
+    <h2 id="deleteTitle"></h2>
+    <p id="deleteBody"></p>
+    <div id="deleteSlugRow">
+      <label for="deleteConfirm" class="muted">Type <code id="deleteSlugLabel"></code> to confirm</label>
+      <input id="deleteConfirm" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:100%;margin-top:6px">
+    </div>
+    <div class="row">
+      <button type="button" id="deleteCancel">Cancel</button>
+      <button type="button" class="danger-solid" id="deleteGo">Delete group</button>
+    </div>
+  </dialog>
   <div id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>
