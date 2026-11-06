@@ -15,7 +15,7 @@ export function normalizeAdminEmail(value) {
 
 function readConfiguredAdmins(env) {
   const configured = String(
-    (env && (env.SAM_MINIGAMES_ADMIN_EMAILS || env.ADMIN_EMAILS)) || "",
+    (env && env.SAM_MINIGAMES_ADMIN_EMAILS) || "",
   );
   const admins = new Set(
     configured
@@ -85,7 +85,7 @@ function getSessionSecret(env) {
 
 export function getAdminAuthDebug(env) {
   const configuredRaw = String(
-    (env && (env.SAM_MINIGAMES_ADMIN_EMAILS || env.ADMIN_EMAILS)) || "",
+    (env && env.SAM_MINIGAMES_ADMIN_EMAILS) || "",
   );
   const configuredAdmins = configuredRaw
     .split(",")
