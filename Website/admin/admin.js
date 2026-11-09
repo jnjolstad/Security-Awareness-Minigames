@@ -1,5 +1,5 @@
 "use strict";
-// build-marker: admin-panel-v4-2026-11-09
+// build-marker: admin-panel-v5-2026-11-09
 
 (() => {
   const API = "/security-awareness-month/minigames-api";
@@ -148,10 +148,76 @@
     }
     card.append(head);
 
-    // Links to share.
     const playPath = `${BASE}?group=${encodeURIComponent(group.slug)}`;
     const boardPath = `${BASE}leaderboard/?group=${encodeURIComponent(group.slug)}#overall`;
-    card.append(el("h3", { textContent: "Share" }), el("div", { className: "links" },
+    const tabs = el("div", { className: "group-tabs" });
+    const settingsBtn = el("button", { type: "button", className: "small active", textContent: "Settings" });
+    const leaderboardBtn = el("button", { type: "button", className: "small", textContent: "Leaderboard" });
+    tabs.append(settingsBtn, leaderboardBtn);
+    card.append(tabs);
+
+    const settingsPane = el("div", { className: "group-pane" });
+    const leaderboardPane = el("div", { className: "group-pane", hidden: true });
+    card.append(settingsPane, leaderboardPane);
+
+    let leaderboardLoaded = false;
+    async function loadLeaderboardPane() {
+      if (leaderboardLoaded) return;
+      leaderboardLoaded = true;
+      leaderboardPane.replaceChildren(el("p", { className: "muted", textContent: "Loading leaderboard…" }));
+      const data = await call(`/board?game=overall&group=${encodeURIComponent(group.slug)}`);
+      const entries = Array.isArray(data && data.entries) ? data.entries : [];
+      const gameCount = Number(data && data.gameCount || 0);
+      if (!entries.length) {
+        leaderboardPane.replaceChildren(
+          el("p", { className: "muted", textContent: "No scores yet in this group." }),
+          el("a", { href: boardPath, target: "_blank", rel: "noopener", className: "button quiet small", textContent: "Open public leaderboard" }),
+        );
+        return;
+      }
+      const table = el("table", { className: "players-table" });
+      const thead = el("thead", {},
+        el("tr", {},
+          el("th", { textContent: "#" }),
+          el("th", { textContent: "Player" }),
+          el("th", { textContent: "Games" }),
+          el("th", { textContent: "1st try" }),
+          el("th", { textContent: "Best" }),
+        ));
+      const tbody = el("tbody");
+      for (const row of entries) {
+        tbody.append(el("tr", {},
+          el("td", { className: "rank", textContent: `#${row.rank}` }),
+          el("td", { textContent: row.name || "Player" }),
+          el("td", { className: "rank", textContent: `${row.games || 0} / ${gameCount}` }),
+          el("td", { className: "rank", textContent: row.firstScore == null ? "–" : String(row.firstScore) }),
+          el("td", { className: "rank", textContent: String(row.score || 0) }),
+        ));
+      }
+      table.append(thead, tbody);
+      leaderboardPane.replaceChildren(
+        el("div", { className: "players-group-card" }, table),
+        el("div", { className: "row", style: "margin-top:10px" },
+          el("a", { href: boardPath, target: "_blank", rel: "noopener", className: "button quiet small", textContent: "Open public leaderboard" }),
+        ),
+      );
+    }
+
+    function showGroupTab(which) {
+      const showLeaderboard = which === "leaderboard";
+      settingsBtn.classList.toggle("active", !showLeaderboard);
+      leaderboardBtn.classList.toggle("active", showLeaderboard);
+      settingsPane.hidden = showLeaderboard;
+      leaderboardPane.hidden = !showLeaderboard;
+      if (showLeaderboard) {
+        run(loadLeaderboardPane, leaderboardBtn);
+      }
+    }
+    settingsBtn.addEventListener("click", () => showGroupTab("settings"));
+    leaderboardBtn.addEventListener("click", () => showGroupTab("leaderboard"));
+
+    // Links to share.
+    settingsPane.append(el("h3", { textContent: "Share" }), el("div", { className: "links" },
       linkRow("Play link", playPath), linkRow("Leaderboard", boardPath)));
 
     // Games: every switch saves right away, one request at a time per group.
@@ -196,7 +262,7 @@
     all.addEventListener("click", () => setGames(Object.fromEntries(ranked.map((g) => [g.id, true]))));
     none.addEventListener("click", () => setGames(Object.fromEntries(ranked.map((g) => [g.id, false]))));
     syncCount();
-    card.append(el("h3", { textContent: "Games" }), el("div", { className: "games-tools" }, all, none, count), grid);
+    settingsPane.append(el("h3", { textContent: "Games" }), el("div", { className: "games-tools" }, all, none, count), grid);
 
     // Group admins.
     const chips = el("div", { className: "chips" });
@@ -222,7 +288,7 @@
       if (!(group.admins || []).length) chips.append(el("span", { className: "muted", textContent: "No group admins yet." }));
     };
     drawChips();
-    card.append(el("h3", { textContent: "Group admins" }), chips);
+    settingsPane.append(el("h3", { textContent: "Group admins" }), chips);
     if (me.globalAdmin) {
       const input = el("input", { type: "email", placeholder: "Email to give admin access", autocomplete: "off", required: true });
       const add = el("button", { type: "submit", textContent: "Add admin" });
@@ -246,11 +312,11 @@
           }
         }, add);
       });
-      card.append(form);
+      settingsPane.append(form);
 
       const del = el("button", { type: "button", className: "danger small", textContent: "Delete group…" });
       del.addEventListener("click", () => askDelete(group));
-      card.append(el("div", { className: "danger-zone" }, del));
+      settingsPane.append(el("div", { className: "danger-zone" }, del));
     }
     return card;
   }

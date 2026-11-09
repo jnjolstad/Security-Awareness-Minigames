@@ -40,6 +40,9 @@
     .badge { font-size:12px; padding:2px 9px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
     .badge.on { color:var(--green-text); border-color:#2d6b55; }
     .badge.off { color:var(--amber); border-color:#6b5530; }
+    .group-tabs { display:flex; gap:8px; margin:12px 0 10px; }
+    .group-tabs button.active { background:#244362; border-color:#2d5b83; }
+    .group-pane[hidden] { display:none !important; }
 
     .switch { display:inline-flex; align-items:center; gap:8px; cursor:pointer; user-select:none; }
     .switch input { position:absolute; opacity:0; width:1px; height:1px; }
@@ -102,7 +105,7 @@
     @media (max-width:520px) { .link-row .label { width:100%; } }
   </style>
   <script src="/security-awareness-month/minigames/catalog.js" defer></script>
-  <script src="admin.js?v=20261109-3" defer></script>
+  <script src="admin.js?v=20261109-4" defer></script>
 </head>
 <body>
   <main>
