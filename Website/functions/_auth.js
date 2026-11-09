@@ -93,7 +93,8 @@ export function getAdminAuthDebug(env) {
   const adminKey = config.adminKey;
   const sessionSecret = config.sessionSecret;
   const resendApiKey = config.resendApiKey;
-  const fromEmail = normalizeEmail(config.emailFrom);
+  const fromAddress = (config.emailFrom.match(/<([^<>]+)>\s*$/) || [])[1] || config.emailFrom;
+  const fromEmail = normalizeEmail(fromAddress);
   const checks = {
     adminEmailsConfigured: configuredAdmins.length > 0,
     usingDefaultAdminFallback: configuredAdmins.length === 0,
