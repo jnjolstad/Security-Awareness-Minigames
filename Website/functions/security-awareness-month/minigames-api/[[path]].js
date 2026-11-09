@@ -45,7 +45,7 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS sam_mg_best_rank ON sam_mg_best (game, score DESC, duration_ms, achieved_at)`,
   `CREATE TABLE IF NOT EXISTS sam_mg_groups (
      id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
-     active INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, created_by TEXT)` ,
+     active INTEGER NOT NULL DEFAULT 1, force_full_names INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, created_by TEXT)` ,
   `CREATE TABLE IF NOT EXISTS sam_mg_group_admins (
      group_id TEXT NOT NULL, email TEXT NOT NULL, created_at INTEGER NOT NULL,
      PRIMARY KEY (group_id, email))`,
@@ -107,6 +107,11 @@ async function ensureSchema(db) {
   }
   try {
     await db.prepare("ALTER TABLE sam_mg_players ADD COLUMN admin_force_public INTEGER NOT NULL DEFAULT 0").run();
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err && (err.cause?.message || err.message)))) throw err;
+  }
+  try {
+    await db.prepare("ALTER TABLE sam_mg_groups ADD COLUMN force_full_names INTEGER NOT NULL DEFAULT 0").run();
   } catch (err) {
     if (!/duplicate column/i.test(String(err && (err.cause?.message || err.message)))) throw err;
   }
@@ -211,7 +216,7 @@ function fullNameFromRow(row) {
 function publicNameFromRow(row) {
   const { firstName, lastName } = profileFromRow(row);
   const first = firstName || "Player";
-  const forcePublic = !!(row && row.admin_force_public);
+  const forcePublic = !!(row && (row.group_force_full_names || row.admin_force_public));
   if (forcePublic) return `${first} ${lastName}`.trim();
   const initial = (lastName || "").charAt(0).toUpperCase();
   return initial ? `${first} ${initial}.` : first;
@@ -249,7 +254,7 @@ function normalizeSlug(raw) {
 async function resolveGroupBySlug(db, slug, includeInactive = false) {
   const clean = normalizeSlug(slug);
   if (!clean) return null;
-  const row = await db.prepare("SELECT id, slug, name, active FROM sam_mg_groups WHERE slug = ?").bind(clean).first();
+  const row = await db.prepare("SELECT id, slug, name, active, force_full_names FROM sam_mg_groups WHERE slug = ?").bind(clean).first();
   if (!row || (!includeInactive && !row.active)) return null;
   return row;
 }
@@ -529,13 +534,17 @@ async function gameBoard(db, game, playerId, groupId = null) {
   const binds = groupId ? [game, playerId || "", groupId] : [game, playerId || ""];
   const { results } = await db.prepare(`
     WITH scoped AS (
-      SELECT b.player_id, b.score, b.duration_ms, b.first_score, b.achieved_at, p.name, p.first_name, p.last_name, p.admin_force_public
+      SELECT
+        b.player_id, b.score, b.duration_ms, b.first_score, b.achieved_at,
+        p.name, p.first_name, p.last_name, p.admin_force_public,
+        COALESCE(g.force_full_names, 0) AS group_force_full_names
       FROM sam_mg_best b
       JOIN sam_mg_players p ON p.id = b.player_id
+      LEFT JOIN sam_mg_groups g ON g.id = p.group_id
       WHERE b.game = ?1 AND ${groupClause}
     ),
     r AS (
-      SELECT player_id, name, first_name, last_name, admin_force_public, score, duration_ms, first_score,
+      SELECT player_id, name, first_name, last_name, admin_force_public, group_force_full_names, score, duration_ms, first_score,
         ROW_NUMBER() OVER (ORDER BY score DESC, duration_ms ASC, achieved_at ASC) AS rk
       FROM scoped)
     SELECT r.*, (SELECT COUNT(*) FROM r) AS total
@@ -551,9 +560,13 @@ async function overallBoard(db, playerId, groupId = null, games = GAME_IDS) {
   const params = groupId ? [playerId || "", ...games, groupId] : [playerId || "", ...games];
   const { results } = await db.prepare(`
     WITH scoped AS (
-      SELECT b.player_id, b.score, b.duration_ms, b.first_score, b.achieved_at, p.name, p.first_name, p.last_name, p.admin_force_public
+      SELECT
+        b.player_id, b.score, b.duration_ms, b.first_score, b.achieved_at,
+        p.name, p.first_name, p.last_name, p.admin_force_public,
+        COALESCE(g.force_full_names, 0) AS group_force_full_names
       FROM sam_mg_best b
       JOIN sam_mg_players p ON p.id = b.player_id
+      LEFT JOIN sam_mg_groups g ON g.id = p.group_id
       WHERE b.game IN (${marks}) AND ${groupClause}
     ),
     t AS (
@@ -563,6 +576,7 @@ async function overallBoard(db, playerId, groupId = null, games = GAME_IDS) {
         MAX(first_name) AS first_name,
         MAX(last_name) AS last_name,
         MAX(admin_force_public) AS admin_force_public,
+        MAX(group_force_full_names) AS group_force_full_names,
         SUM(score) AS score,
         SUM(duration_ms) AS duration_ms,
         SUM(first_score) AS first_score,
@@ -598,7 +612,7 @@ async function getBoard(url, db) {
 async function getAdmin(request, env, db) {
   const actor = await actorContext(request, env, db);
   const groups = actor.groupIds.size
-    ? (await db.prepare(`SELECT id, slug, name FROM sam_mg_groups WHERE id IN (${Array.from(actor.groupIds).map((_, i) => `?${i + 1}`).join(", ")})`)
+    ? (await db.prepare(`SELECT id, slug, name, force_full_names FROM sam_mg_groups WHERE id IN (${Array.from(actor.groupIds).map((_, i) => `?${i + 1}`).join(", ")})`)
       .bind(...Array.from(actor.groupIds)).all()).results || []
     : [];
   return json({
@@ -621,7 +635,7 @@ async function listGroups(request, env, db) {
     params.push(...ids);
   }
   const groups = (await db.prepare(`
-    SELECT g.id, g.slug, g.name, g.active,
+    SELECT g.id, g.slug, g.name, g.active, g.force_full_names,
       (SELECT COUNT(*) FROM sam_mg_players p WHERE p.group_id = g.id) AS members
     FROM sam_mg_groups g
     ${where}
@@ -632,6 +646,8 @@ async function listGroups(request, env, db) {
     const map = new Map((gameRows.results || []).map((r) => [r.game, !!r.enabled]));
     group.admins = (admins.results || []).map((r) => r.email);
     group.games = Object.fromEntries(GAME_IDS.map((id) => [id, map.has(id) ? map.get(id) : true]));
+    group.forceFullNames = !!group.force_full_names;
+    delete group.force_full_names;
   }
   return json({ groups, globalAdmin: actor.globalAdmin });
 }
@@ -680,6 +696,10 @@ async function updateGroup(request, env, db) {
   if (body && Object.prototype.hasOwnProperty.call(body, "active")) {
     updates.push("active = ?");
     args.push(body.active ? 1 : 0);
+  }
+  if (body && Object.prototype.hasOwnProperty.call(body, "forceFullNames")) {
+    updates.push("force_full_names = ?");
+    args.push(body.forceFullNames ? 1 : 0);
   }
   if (!updates.length) return fail(400, "Nothing to update.");
   const result = await db.prepare(`UPDATE sam_mg_groups SET ${updates.join(", ")} WHERE id = ?`).bind(...args, groupId).run();
@@ -765,7 +785,7 @@ async function getGroupConfig(url, db) {
   const slug = url.searchParams.get("slug") || "";
   const group = await resolveGroupBySlug(db, slug);
   if (!group) return fail(404, "Unknown group.");
-  return json({ slug: group.slug, name: group.name, games: await enabledGamesForGroup(db, group.id) });
+  return json({ slug: group.slug, name: group.name, forceFullNames: !!group.force_full_names, games: await enabledGamesForGroup(db, group.id) });
 }
 
 async function joinGroup(request, db) {

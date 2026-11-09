@@ -220,6 +220,31 @@
     settingsPane.append(el("h3", { textContent: "Share" }), el("div", { className: "links" },
       linkRow("Play link", playPath), linkRow("Leaderboard", boardPath)));
 
+    const forceNamesToggle = el("input", { type: "checkbox", checked: !!group.forceFullNames });
+    forceNamesToggle.setAttribute("role", "switch");
+    forceNamesToggle.setAttribute("aria-label", `Force full names for group ${group.name}`);
+    forceNamesToggle.addEventListener("change", () => {
+      const next = !!forceNamesToggle.checked;
+      run(async () => {
+        try {
+          await call("/groups", { method: "PATCH", body: { groupId: group.id, forceFullNames: next } });
+          group.forceFullNames = next;
+          toast(next ? "Group leaderboard set to full names" : "Group leaderboard set to first name + initial");
+        } catch (err) {
+          forceNamesToggle.checked = !next;
+          throw err;
+        }
+      }, forceNamesToggle);
+    });
+    settingsPane.append(
+      el("h3", { textContent: "Leaderboard privacy" }),
+      el("label", { className: "switch" },
+        forceNamesToggle,
+        el("span", { className: "track" }),
+        el("span", { className: "muted", textContent: "Force full names on this group's leaderboard" }),
+      ),
+    );
+
     // Games: every switch saves right away, one request at a time per group.
     const count = el("span", { className: "count" });
     const grid = el("div", { className: "games" });
@@ -388,7 +413,6 @@
       const lastInput = el("input", { type: "text", value: player.lastName || "", maxLength: 40 });
       const emailInput = el("input", { type: "email", value: player.email || "", maxLength: 120 });
       const anonymousToggle = el("input", { type: "checkbox", checked: !!player.isAnonymous });
-      const forcePublicToggle = el("input", { type: "checkbox", checked: !!player.adminForcePublicIdentity });
       const saveBtn = el("button", { type: "button", className: "small", textContent: "Save" });
       const rank = `#${index + 1}`;
 
@@ -399,7 +423,6 @@
           lastName: lastInput.value.trim(),
           email: emailInput.value.trim().toLowerCase(),
           isAnonymous: anonymousToggle.checked,
-          adminForcePublicIdentity: forcePublicToggle.checked,
         };
         const data = await call("/player", { method: "PATCH", body: payload });
         const updated = data.player || {};
@@ -407,7 +430,6 @@
         player.lastName = updated.lastName || payload.lastName;
         player.email = updated.email || payload.email;
         player.isAnonymous = !!updated.isAnonymous;
-        player.adminForcePublicIdentity = !!updated.adminForcePublicIdentity;
         player.publicName = updated.publicName || player.publicName;
         toast("Player profile updated");
         await loadPlayers();
@@ -427,7 +449,6 @@
         el("td", {},
           el("div", { className: "stack" },
             el("label", {}, anonymousToggle, " Anonymous on public board"),
-            el("label", {}, forcePublicToggle, " Force public full name"),
           )),
         el("td", {}, saveBtn),
       );
