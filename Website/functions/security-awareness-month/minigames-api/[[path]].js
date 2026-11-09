@@ -28,6 +28,13 @@ const ADMIN_LOGIN_TTL_MS = 15 * 60 * 1000;
 
 const PERSON_NAME_PATTERN = /^[\p{L}][\p{L}' -]{0,39}$/u;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const NICKNAME_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N} ._-]{1,19}$/u;
+const BLOCKED_TERMS = [
+  "fuck", "shit", "cunt", "nigg", "fag", "rape",
+  "faen", "helvete", "hore", "fitte", "kuk", "neger",
+  "admin", "moderator", "northwind",
+];
+const LEET = { "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b", "@": "a", "$": "s", "!": "i" };
 
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS sam_mg_players (
@@ -193,6 +200,19 @@ function cleanEmail(raw) {
   return { email, key: email };
 }
 
+function cleanNickname(raw) {
+  const name = String(raw || "").normalize("NFKC").replace(/\s+/g, " ").trim();
+  if (!NICKNAME_PATTERN.test(name)) return { error: "Nickname must be 2–20 letters, numbers, spaces, dots, dashes or underscores." };
+  const folded = name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[0134578@$!]/g, (c) => LEET[c] || c)
+    .replace(/[^a-z0-9]/g, "");
+  if (BLOCKED_TERMS.some((term) => folded.includes(term))) return { error: "Please pick a different nickname." };
+  return { name, key: name.toLowerCase().replace(/[\s._-]/g, "") };
+}
+
 function splitLegacyName(raw) {
   const text = String(raw || "").trim();
   if (!text) return { firstName: "", lastName: "" };
@@ -329,14 +349,52 @@ function canManageGroup(actor, groupId) {
 
 async function createPlayer(request, db) {
   const body = await readJson(request);
-  const clean = cleanProfile(body, true);
-  if (clean.error) return fail(400, clean.error);
   let groupId = null;
+  let group = null;
   const groupSlug = normalizeSlug(body && body.group);
   if (groupSlug) {
-    const group = await resolveGroupBySlug(db, groupSlug);
+    group = await resolveGroupBySlug(db, groupSlug);
     if (!group) return fail(404, "Unknown group.");
     groupId = group.id;
+  }
+  const requireFullProfile = !!(group && group.force_full_names);
+  let record;
+  if (requireFullProfile) {
+    const clean = cleanProfile(body, false);
+    if (clean.error) return fail(400, clean.error);
+    record = {
+      fullName: clean.fullName,
+      firstName: clean.firstName,
+      lastName: clean.lastName,
+      email: clean.email,
+      emailKey: clean.emailKey,
+      isAnonymous: clean.isAnonymous,
+      nameKey: clean.emailKey,
+    };
+  } else if (body && typeof body.name === "string" && body.name.trim()) {
+    const nick = cleanNickname(body.name);
+    if (nick.error) return fail(400, nick.error);
+    record = {
+      fullName: nick.name,
+      firstName: null,
+      lastName: null,
+      email: null,
+      emailKey: null,
+      isAnonymous: true,
+      nameKey: nick.key,
+    };
+  } else {
+    const clean = cleanProfile(body, false);
+    if (clean.error) return fail(400, clean.error);
+    record = {
+      fullName: clean.fullName,
+      firstName: clean.firstName,
+      lastName: clean.lastName,
+      email: clean.email,
+      emailKey: clean.emailKey,
+      isAnonymous: clean.isAnonymous,
+      nameKey: clean.emailKey,
+    };
   }
   const ipHash = (await sha256("sam-mg:" + (request.headers.get("cf-connecting-ip") || "unknown"))).slice(0, 32);
   const hourAgo = Date.now() - 3600_000;
@@ -350,31 +408,42 @@ async function createPlayer(request, db) {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`)
       .bind(
         id,
-        clean.fullName,
-        clean.firstName,
-        clean.lastName,
-        clean.email,
-        clean.emailKey,
-        clean.isAnonymous ? 1 : 0,
-        clean.emailKey,
+        record.fullName,
+        record.firstName,
+        record.lastName,
+        record.email,
+        record.emailKey,
+        record.isAnonymous ? 1 : 0,
+        record.nameKey,
         await sha256(key),
         ipHash,
         Date.now(),
         groupId,
       ).run();
   } catch (err) {
-    if (String(err && err.message).includes("UNIQUE")) return fail(409, "That email is already registered. Use another email.");
+    if (String(err && err.message).includes("UNIQUE")) {
+      return fail(409, requireFullProfile
+        ? "That email is already registered. Use another email."
+        : "That nickname is taken. Try another.");
+    }
     throw err;
   }
+  const viewRow = {
+    first_name: record.firstName,
+    last_name: record.lastName,
+    name: record.fullName,
+    admin_force_public: 0,
+    group_force_full_names: requireFullProfile ? 1 : 0,
+  };
   const player = {
     id,
     key,
-    name: clean.fullName,
-    firstName: clean.firstName,
-    lastName: clean.lastName,
-    email: clean.email,
-    isAnonymous: clean.isAnonymous,
-    publicName: publicNameFromRow({ first_name: clean.firstName, last_name: clean.lastName, admin_force_public: 0 }),
+    name: record.fullName,
+    firstName: record.firstName || undefined,
+    lastName: record.lastName || undefined,
+    email: record.email || undefined,
+    isAnonymous: record.isAnonymous,
+    publicName: publicNameFromRow(viewRow),
   };
   return json(player);
 }
@@ -388,6 +457,10 @@ async function startRun(request, db) {
   if (player.group_id) {
     const allowed = await enabledGamesForGroup(db, player.group_id);
     if (!allowed.includes(game)) return fail(403, "This game isn't enabled for your group.");
+    const group = await db.prepare("SELECT force_full_names FROM sam_mg_groups WHERE id = ?").bind(player.group_id).first();
+    if (group && group.force_full_names && !player.email) {
+      return fail(403, "This group requires first name, last name and email. Register again.");
+    }
   }
   const now = Date.now();
   const last = await db.prepare("SELECT started_at FROM sam_mg_runs WHERE player_id = ? ORDER BY started_at DESC LIMIT 1").bind(player.id).first();

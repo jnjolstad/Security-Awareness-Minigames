@@ -12,6 +12,7 @@
   const MIN_TO_CONTINUE = G.minToContinue || Math.ceil(risks.length * 0.6);
   const isPhoto = G.scene.type === "photo";
   const pending = isPhoto && G.scene.pending;
+  let forceFullNames = false;
 
   const $ = (id) => document.getElementById(id);
   const SVG = "http://www.w3.org/2000/svg";
@@ -470,22 +471,27 @@
       line.append(change);
       who.append(line);
     } else {
-      const first = el("input", { id: "firstName", maxLength: 40, autocomplete: "given-name", placeholder: "First name" });
-      const last = el("input", { id: "lastName", maxLength: 40, autocomplete: "family-name", placeholder: "Last name" });
-      const email = el("input", { id: "email", type: "email", maxLength: 120, autocomplete: "email", placeholder: "Work email" });
-      const publicToggle = el("input", { id: "showFullName", type: "checkbox" });
-      const toggleWrap = el("label", { className: "muted" }, publicToggle, " Show full name on leaderboard");
-      publicToggle.checked = false;
-      who.append(
-        el("label", { htmlFor: "firstName" }, "First name"),
-        first,
-        el("label", { htmlFor: "lastName" }, "Last name"),
-        last,
-        el("label", { htmlFor: "email" }, "Email"),
-        email,
-        toggleWrap,
-        el("small", { className: "muted" }, "Public leaderboard shows Firstname + last initial by default (for example: Alex N.)."),
-      );
+      if (forceFullNames) {
+        const first = el("input", { id: "firstName", maxLength: 40, autocomplete: "given-name", placeholder: "First name" });
+        const last = el("input", { id: "lastName", maxLength: 40, autocomplete: "family-name", placeholder: "Last name" });
+        const email = el("input", { id: "email", type: "email", maxLength: 120, autocomplete: "email", placeholder: "Work email" });
+        who.append(
+          el("label", { htmlFor: "firstName" }, "First name"),
+          first,
+          el("label", { htmlFor: "lastName" }, "Last name"),
+          last,
+          el("label", { htmlFor: "email" }, "Email"),
+          email,
+          el("small", { className: "muted" }, "This group requires your full name and email for ranked play."),
+        );
+      } else {
+        const nick = el("input", { id: "nick", maxLength: 20, autocomplete: "nickname", placeholder: "Nickname" });
+        who.append(
+          el("label", { htmlFor: "nick" }, "Nickname"),
+          nick,
+          el("small", { className: "muted" }, "Nicknames are allowed unless the group enforces full names."),
+        );
+      }
       const solo = el("button", { type: "button", className: "linkish", id: "unranked" }, "Play without the leaderboard");
       solo.addEventListener("click", () => begin(null));
       who.append(solo);
@@ -512,19 +518,36 @@
     btn.disabled = true;
     try {
       if (!Board.player()) {
-        const firstName = ($("firstName").value || "").trim();
-        const lastName = ($("lastName").value || "").trim();
-        const email = ($("email").value || "").trim();
-        if (!firstName || !lastName || !email) {
-          msg.textContent = "Enter first name, last name and email, or play without the leaderboard.";
+        if (forceFullNames) {
+          const firstName = ($("firstName").value || "").trim();
+          const lastName = ($("lastName").value || "").trim();
+          const email = ($("email").value || "").trim();
+          if (!firstName || !lastName || !email) {
+            msg.textContent = "Enter first name, last name and email, or play without the leaderboard.";
+            return;
+          }
+          await Board.register({
+            firstName,
+            lastName,
+            email,
+            isAnonymous: false,
+          });
+        } else {
+          const nick = ($("nick").value || "").trim();
+          if (!nick) {
+            msg.textContent = "Pick a nickname, or play without the leaderboard.";
+            return;
+          }
+          await Board.register(nick);
+        }
+      } else if (forceFullNames) {
+        const p = Board.player();
+        if (p && (!p.firstName || !p.lastName || !p.email)) {
+          Board.forget();
+          renderWho();
+          msg.textContent = "This group requires first name, last name and email. Register again.";
           return;
         }
-        await Board.register({
-          firstName,
-          lastName,
-          email,
-          isAnonymous: !$("showFullName").checked,
-        });
       }
       const { runId } = await Board.start(G.id);
       begin(runId);
@@ -535,6 +558,20 @@
       renderWho();
     } finally {
       btn.disabled = pending;
+    }
+  }
+
+  async function loadGroupPolicy() {
+    const slug = Board.group();
+    if (!slug) {
+      forceFullNames = false;
+      return;
+    }
+    try {
+      const group = await Board.call(`/group?slug=${encodeURIComponent(slug)}`);
+      forceFullNames = !!(group && group.forceFullNames);
+    } catch {
+      forceFullNames = false;
     }
   }
 
@@ -596,7 +633,7 @@
 
   buildPage();
   buildScene();
-  renderWho();
+  loadGroupPolicy().finally(() => renderWho());
   $("startForm").addEventListener("submit", startRanked);
   $("finish").addEventListener("click", () => {
     state.phase = "chain";
