@@ -14,7 +14,15 @@ window.Board = (() => {
   function player() {
     try {
       const p = JSON.parse(localStorage.getItem(PLAYER_KEY));
-      return p && p.id && p.key && p.name ? p : null;
+      if (!(p && p.id && p.key && p.name)) return null;
+      // Legacy nickname-only profiles are no longer valid after the profile
+      // model switch (first/last name + email). Drop them so the user gets
+      // the new registration form automatically.
+      if (!p.firstName || !p.lastName || !p.email) {
+        forget();
+        return null;
+      }
+      return p;
     } catch {
       return null;
     }
