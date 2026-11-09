@@ -1,8 +1,0 @@
-# PROJECT FROST — staging notes
-staged_by: MW
-method: USB drop (parking lot) -> autorun loader
-beacon: clone of corporate Wi-Fi -> SEE THE WI-FI SURVEY ON THE SOC WALL
-dest: \\CONFIDENTIAL\ClientVault -> personal cloud
-
-# (forensic note) operator initials recovered from build path: MW
-# next lead: identify the evil-twin SSID on the Wi-Fi survey
