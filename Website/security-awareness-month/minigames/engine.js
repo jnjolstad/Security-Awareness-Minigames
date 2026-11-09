@@ -13,6 +13,8 @@
   const isPhoto = G.scene.type === "photo";
   const pending = isPhoto && G.scene.pending;
   let forceFullNames = false;
+  const groupSlug = Board.group();
+  const groupQuery = groupSlug ? `?group=${encodeURIComponent(groupSlug)}` : "";
 
   const $ = (id) => document.getElementById(id);
   const SVG = "http://www.w3.org/2000/svg";
@@ -28,7 +30,7 @@
     document.title = `${G.title} · Mini-games`;
     document.body.innerHTML = `
       <header class="topbar">
-        <a class="brand" href="../"><span class="brand-mark">SA</span> MINI-GAMES <small>/ SECURITY AWARENESS MONTH</small></a>
+        <a class="brand" href="../${groupQuery}"><span class="brand-mark">SA</span> MINI-GAMES <small>/ SECURITY AWARENESS MONTH</small></a>
         <span class="game-name" id="gameName"></span>
         <button class="quiet" id="restart">Restart</button>
       </header>

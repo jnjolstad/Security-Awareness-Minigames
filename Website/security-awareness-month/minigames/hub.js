@@ -38,7 +38,7 @@
   (async () => {
     const groupSlug = Board.group();
     const query = groupSlug ? `?group=${encodeURIComponent(groupSlug)}` : "";
-    for (const node of document.querySelectorAll('.game-name, .champ-head a')) node.href += query;
+    for (const node of document.querySelectorAll('.brand, .game-name, .champ-head a')) node.href += query;
 
     let allowed = null;
     if (groupSlug) {
