@@ -28,13 +28,16 @@ This is the single config module used by both:
 
 Configure Pages Function environment variables:
 
-- `SAM_MINIGAMES_ADMIN_EMAILS` (comma-separated allowed admin emails)
-- `SAM_MINIGAMES_SESSION_SECRET` (strong random secret for signing admin session cookies)
+- `SAM_MINIGAMES_ADMIN_EMAILS` (comma-separated global admin emails; with none set there is no global admin)
+- `SAM_MINIGAMES_SESSION_SECRET` (random secret of at least 32 characters for signing admin sessions; required, with no fallback, so without it admin sign-in is off)
 - `RESEND_API_KEY` (Resend API key used to send one-time admin login links)
 - `SAM_MINIGAMES_EMAIL_FROM` (verified sender, e.g. `Security Awareness <security@njolstad.no>`)
 - `SAM_MINIGAMES_ADMIN_LOGIN_TTL_MS` (optional; magic-link validity in ms, clamped to 1–60 minutes; default 900000)
 - `SAM_MINIGAMES_PLAYER_LOGIN_TTL_MS` (optional; player sign-in link validity, same limits and default)
-- `SAM_MINIGAMES_PLAYER_LOGIN_MAX_PER_HOUR` (optional; sign-in emails per player per hour, 1–20; default 3)
+- `SAM_MINIGAMES_ADMIN_LOGIN_MAX_PER_HOUR` / `SAM_MINIGAMES_PLAYER_LOGIN_MAX_PER_HOUR` (optional; sign-in emails per address and requesting network per hour, 1 to 20; default 3)
+- `SAM_MINIGAMES_LOGIN_COOLDOWN_MS` (optional; minimum gap between sign-in emails to one address from anyone, 10 s to 10 min; default 60000)
+- `SAM_MINIGAMES_REGISTER_DUP_MAX_PER_HOUR` (optional; "email already registered" answers per network per hour before registration from it is blocked, 1 to 100; default 10)
+- `SAM_MINIGAMES_ALLOW_KEY_LOGIN` (optional; `true` turns on the old email + admin-key login at `/auth/login`. Off by default. It skips the email step, so use it only as a way back in if email delivery is down. Needs `SAM_MINIGAMES_ADMIN_KEY` of 24+ characters.)
 
 The admin page (`/admin`) now uses **email-only magic-link login**:
 
@@ -54,16 +57,33 @@ Players who registered with an email (groups that require full names, or the ful
 3. Opening the link signs them in on that browser. Their scores and profile are unchanged.
 
 Notes:
-- The response is identical whether or not the email is registered, so it can't be used to check who has signed up.
+- The response is identical whether or not the email is registered, and the email is sent after the response, so neither the reply nor its timing says who has signed up.
+- Limits: 10 requests per network per 10 minutes, 3 emails per address per network per hour, one email per address per cooldown, and 20 per address per hour overall. One visitor can't use up an address owner's allowance.
 - Only a key hash is stored, so signing in issues a **new key**. Any browser that was signed in before has to sign in again.
 - Nickname-only players have no email, so they can't use this.
 - The new `sam_mg_player_login_tokens` table is created automatically on first request, and is also in `migrations/d1/minigames-schema.sql`.
+
+## Group links
+
+A group link is `?group=<slug>.<access code>`. The slug alone gives no access: reading a group's leaderboard, joining it and registering into it all need the code, and every failure looks the same (unknown slug, wrong code, inactive group). Repeated failures from one network are blocked for 10 minutes.
+
+- Admins copy links from the admin page; they already include the code.
+- **Rotate link code** (global admins) replaces the code and breaks every link already shared for that group.
+- Groups that existed before access codes were added get a code automatically on the first request. **Their old links stop working, so share the new ones.**
+- Players already in a group stay in it; they need the current link to see the group's leaderboard.
+
+## Abuse protection
+
+- Score checks: each click must be at least 250 ms after the previous one, the first at least 600 ms in, and a finished run needs 1 s per action overall. A script can still fabricate a plausible log, so keep an eye on the boards and remove suspicious players from the admin page.
+- Registration, sign-in requests and group-code guesses are rate limited per network (IPv6 addresses are grouped by /64) using the `sam_mg_rate_limits` table.
+- Write requests carrying an `Origin` header from another site are refused, and the admin session cookie is `SameSite=Strict`.
+- `/admin/` is served with a CSP that forbids framing and inline scripts. All pages send `nosniff` and `no-referrer`.
 
 For troubleshooting, use:
 
 - `GET /security-awareness-month/minigames-api/auth/debug`
 
-This endpoint is safe to share in logs because it returns only booleans/flags (never secret values), including whether required env vars are missing or too short.
+Signed out, it only returns `{"ok": true|false}`. Signed in as an admin it also lists which settings are missing or too short (never their values).
 
 ## Quick setup path (Cloudflare + GitHub)
 

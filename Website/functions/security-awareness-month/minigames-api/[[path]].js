@@ -16,15 +16,28 @@ import { GAMES } from "../_minigames-key.js";
 
 const POINTS = { wrong: 25, hint: 100, missed: 100 };
 const LATENCY_GRACE_MS = 1500;
-// A complete run needs at least this long per required click/answer. It caps
-// what a scripted client can gain over a fast human who knows the answers.
-const MIN_MS_PER_ACTION = 700;
+// A complete run needs at least this long per required click/answer, each event
+// has to be a human-plausible gap after the previous one, and the first has to
+// come after the scene has had time to render. Real finishes in production run
+// about 1.4 s per action at the fastest, so these sit well below human speed.
+const MIN_MS_PER_ACTION = 1000;
+const MIN_EVENT_GAP_MS = 250;
+const MIN_FIRST_EVENT_MS = 600;
 const MAX_LOG = 400;
 const START_COOLDOWN_MS = 3000;
 const RUN_TTL_MS = 30 * 60 * 1000;
 const MAX_NEW_PLAYERS_PER_IP_HOUR = 10;
 const TOP = 10;
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,31}$/;
+const GROUP_REF_PATTERN = /^([a-z0-9][a-z0-9-]{1,31})(?:\.([0-9a-f]{16}))?$/;
+const GROUP_LINK_ERROR = "This group link is invalid or out of date. Ask your organiser for the current link.";
+const TEN_MINUTES_MS = 10 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const LOGIN_REQUESTS_PER_IP = 10;
+const LOGIN_EMAIL_BACKSTOP_PER_HOUR = 20;
+const REGISTRATIONS_PER_IP_HOUR = 30;
+const GROUP_FAILURES_PER_IP = 20;
+const KEY_LOGIN_ATTEMPTS_PER_IP = 5;
 
 const PERSON_NAME_PATTERN = /^[\p{L}][\p{L}' -]{0,39}$/u;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -52,7 +65,7 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS sam_mg_best_rank ON sam_mg_best (game, score DESC, duration_ms, achieved_at)`,
   `CREATE TABLE IF NOT EXISTS sam_mg_groups (
      id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
-     active INTEGER NOT NULL DEFAULT 1, force_full_names INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, created_by TEXT)` ,
+     active INTEGER NOT NULL DEFAULT 1, force_full_names INTEGER NOT NULL DEFAULT 0, access_code TEXT, created_at INTEGER NOT NULL, created_by TEXT)` ,
   `CREATE TABLE IF NOT EXISTS sam_mg_group_admins (
      group_id TEXT NOT NULL, email TEXT NOT NULL, created_at INTEGER NOT NULL,
      PRIMARY KEY (group_id, email))`,
@@ -69,6 +82,8 @@ const SCHEMA = [
      id TEXT PRIMARY KEY, player_id TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE,
      created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER)`,
   `CREATE INDEX IF NOT EXISTS sam_mg_player_login_tokens_player ON sam_mg_player_login_tokens (player_id, created_at)`,
+  `CREATE TABLE IF NOT EXISTS sam_mg_rate_limits (
+     k TEXT PRIMARY KEY, n INTEGER NOT NULL, exp INTEGER NOT NULL)`,
 ];
 const GAME_IDS = Object.keys(GAMES);
 
@@ -127,6 +142,13 @@ async function ensureSchema(db) {
     if (!/duplicate column/i.test(String(err && (err.cause?.message || err.message)))) throw err;
   }
   await db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS sam_mg_players_email_key ON sam_mg_players (email_key)").run();
+  try {
+    await db.prepare("ALTER TABLE sam_mg_groups ADD COLUMN access_code TEXT").run();
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err && (err.cause?.message || err.message)))) throw err;
+  }
+  // Groups made before access codes existed get one, so their links must be re-shared.
+  await db.prepare("UPDATE sam_mg_groups SET access_code = lower(hex(randomblob(8))) WHERE access_code IS NULL OR access_code = ''").run();
   schemaReady = true;
 }
 
@@ -153,7 +175,11 @@ export function order(seed, label, n) {
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+    },
   });
 }
 
@@ -181,6 +207,40 @@ function safeEqual(a, b) {
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
+}
+
+// IPv6 users get a /64 each, so rotating through addresses in one block doesn't
+// dodge a limit.
+function ipPrefix(request) {
+  const raw = String(request.headers.get("cf-connecting-ip") || "").trim().toLowerCase();
+  if (!raw) return "unknown";
+  const mapped = raw.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  if (mapped) return mapped[1];
+  if (!raw.includes(":")) return raw;
+  const head = raw.split("::")[0];
+  return head ? head.split(":").slice(0, 4).join(":") : raw;
+}
+
+async function ipKey(request) {
+  return (await sha256("sam-mg-net:" + ipPrefix(request))).slice(0, 32);
+}
+
+// Fixed-window counter in D1. Returns true while the caller is within `limit`.
+async function hit(db, key, limit, windowMs) {
+  const now = Date.now();
+  const bucket = Math.floor(now / windowMs);
+  const row = await db.prepare(
+    "INSERT INTO sam_mg_rate_limits (k, n, exp) VALUES (?, 1, ?) ON CONFLICT (k) DO UPDATE SET n = n + 1 RETURNING n",
+  ).bind(`${key}:${bucket}`, (bucket + 1) * windowMs + 60_000).first();
+  if (Math.random() < 0.02) await db.prepare("DELETE FROM sam_mg_rate_limits WHERE exp < ?").bind(now).run();
+  return !!row && row.n <= limit;
+}
+
+// Reads a counter without counting this call.
+async function count(db, key, windowMs) {
+  const bucket = Math.floor(Date.now() / windowMs);
+  const row = await db.prepare("SELECT n FROM sam_mg_rate_limits WHERE k = ?").bind(`${key}:${bucket}`).first();
+  return row ? row.n : 0;
 }
 
 async function authPlayer(request, db) {
@@ -275,12 +335,26 @@ function normalizeSlug(raw) {
   return SLUG_PATTERN.test(slug) ? slug : "";
 }
 
-async function resolveGroupBySlug(db, slug, includeInactive = false) {
-  const clean = normalizeSlug(slug);
-  if (!clean) return null;
-  const row = await db.prepare("SELECT id, slug, name, active, force_full_names FROM sam_mg_groups WHERE slug = ?").bind(clean).first();
-  if (!row || (!includeInactive && !row.active)) return null;
-  return row;
+// Public group endpoints take "<slug>.<access code>". The slug alone is guessable,
+// so it never grants access. Every failure looks the same (unknown slug, wrong
+// code, inactive group), and repeated failures from one network are blocked.
+async function resolveGroupRef(db, request, rawRef) {
+  const match = String(rawRef || "").trim().toLowerCase().match(GROUP_REF_PATTERN);
+  const net = await ipKey(request);
+  if ((await count(db, `grp-fail:${net}`, TEN_MINUTES_MS)) >= GROUP_FAILURES_PER_IP) {
+    return { error: fail(429, "Too many attempts. Try again later.") };
+  }
+  const row = match
+    ? await db.prepare("SELECT id, slug, name, active, force_full_names, access_code FROM sam_mg_groups WHERE slug = ?").bind(match[1]).first()
+    : null;
+  const expected = String(row && row.access_code || "");
+  const given = String(match && match[2] || "");
+  const valid = !!row && !!row.active && expected.length === 16 && safeEqual(expected, given);
+  if (!valid) {
+    await hit(db, `grp-fail:${net}`, GROUP_FAILURES_PER_IP, TEN_MINUTES_MS);
+    return { error: fail(404, GROUP_LINK_ERROR) };
+  }
+  return { group: row };
 }
 
 async function enabledGamesForGroup(db, groupId) {
@@ -347,31 +421,52 @@ async function sendAdminMagicLink(email, token, env, origin) {
   }, env);
 }
 
-async function issueAdminMagicLink(email, env, db, origin) {
+async function mintAdminToken(email, env, db) {
   const config = getMinigamesConfig(env);
   const now = Date.now();
   const token = randomHex(24);
-  const tokenHash = await sha256("sam-admin-login:" + token);
   await db.batch([
     db.prepare("DELETE FROM sam_mg_admin_login_tokens WHERE expires_at < ? OR used_at IS NOT NULL").bind(now),
     db.prepare("INSERT INTO sam_mg_admin_login_tokens (id, email, token_hash, created_at, expires_at, used_at) VALUES (?, ?, ?, ?, ?, NULL)")
-      .bind(randomHex(12), email, tokenHash, now, now + config.adminLoginTtlMs),
+      .bind(randomHex(12), email, await sha256("sam-admin-login:" + token), now, now + config.adminLoginTtlMs),
   ]);
-  return await sendAdminMagicLink(email, token, env, origin);
+  return token;
+}
+
+// Limits for public sign-in email requests, counted before anyone checks whether
+// the address is registered so both outcomes do the same work:
+//  - per address and requesting network: one visitor can't use up the owner's allowance
+//  - cooldown per address: bounds how often an address can be mailed, from anyone
+//  - hourly ceiling per address: backstop against many networks at once
+async function loginAllowed(db, kind, email, net, perPairMax, cooldownMs) {
+  const results = await Promise.all([
+    hit(db, `${kind}-pair:${email}:${net}`, perPairMax, HOUR_MS),
+    hit(db, `${kind}-cd:${email}`, 1, cooldownMs),
+    hit(db, `${kind}-email:${email}`, LOGIN_EMAIL_BACKSTOP_PER_HOUR, HOUR_MS),
+  ]);
+  return results.every(Boolean);
 }
 
 function canManageGroup(actor, groupId) {
   return !!(actor && (actor.globalAdmin || actor.groupIds.has(groupId)));
 }
 
-async function createPlayer(request, db) {
+async function createPlayer(request, db, env) {
   const body = await readJson(request);
+  const net = await ipKey(request);
+  const config = getMinigamesConfig(env);
+  // Once a network has hit the "already registered" limit, every registration
+  // from it is refused, so success and failure can't be told apart past that point.
+  if ((await count(db, `reg-dup:${net}`, HOUR_MS)) >= config.registerDuplicateMaxPerHour
+    || !(await hit(db, `reg-ip:${net}`, REGISTRATIONS_PER_IP_HOUR, HOUR_MS))) {
+    return fail(429, "Too many attempts from this network. Try again later.");
+  }
   let groupId = null;
   let group = null;
-  const groupSlug = normalizeSlug(body && body.group);
-  if (groupSlug) {
-    group = await resolveGroupBySlug(db, groupSlug);
-    if (!group) return fail(404, "Unknown group.");
+  if (body && body.group) {
+    const resolved = await resolveGroupRef(db, request, body.group);
+    if (resolved.error) return resolved.error;
+    group = resolved.group;
     groupId = group.id;
   }
   const requireFullProfile = !!(group && group.force_full_names);
@@ -413,8 +508,8 @@ async function createPlayer(request, db) {
       nameKey: clean.emailKey,
     };
   }
-  const ipHash = (await sha256("sam-mg:" + (request.headers.get("cf-connecting-ip") || "unknown"))).slice(0, 32);
-  const hourAgo = Date.now() - 3600_000;
+  const ipHash = net;
+  const hourAgo = Date.now() - HOUR_MS;
   const recent = await db.prepare("SELECT COUNT(*) AS n FROM sam_mg_players WHERE ip_hash = ? AND created_at > ?").bind(ipHash, hourAgo).first();
   if (recent && recent.n >= MAX_NEW_PLAYERS_PER_IP_HOUR) return fail(429, "Too many new profiles from this network. Try again later.");
   const id = randomHex(12);
@@ -439,7 +534,8 @@ async function createPlayer(request, db) {
       ).run();
   } catch (err) {
     if (String(err && err.message).includes("UNIQUE")) {
-      return fail(409, requireFullProfile
+      if (record.email) await hit(db, `reg-dup:${net}`, config.registerDuplicateMaxPerHour, HOUR_MS);
+      return fail(409, record.email
         ? "That email is already registered. Use \"Already registered? Sign in\" to get a sign-in link."
         : "That nickname is taken. Try another.");
     }
@@ -465,40 +561,40 @@ async function createPlayer(request, db) {
   return json(player);
 }
 
-// Players with an email on file can get a one-time link that issues a fresh
-// key, so they can come back from another browser or device. The response is
-// the same whether or not the email is known, so it can't be used to probe
-// who has registered.
-async function requestPlayerLogin(request, env, db) {
+// Players with an email on file can get a one-time link that issues a fresh key,
+// so they can come back from another browser or device. The response is the same
+// whether or not the email is known, and the email is sent after responding, so
+// neither the reply nor its timing says who has registered.
+async function requestPlayerLogin(request, env, db, defer) {
   const body = await readJson(request);
   const email = cleanEmail(body && body.email);
   if (email.error) return fail(400, email.error);
   const config = getMinigamesConfig(env);
   if (!config.resendApiKey || !config.emailFrom) return fail(503, "Email sign-in is not configured on the server.");
+  const net = await ipKey(request);
+  if (!(await hit(db, `pl-ip:${net}`, LOGIN_REQUESTS_PER_IP, TEN_MINUTES_MS))) return fail(429, "Too many sign-in requests. Try again later.");
+  const allowed = await loginAllowed(db, "pl", email.key, net, config.playerLoginMaxPerHour, config.loginCooldownMs);
   const row = await db.prepare(`
-    SELECT p.id, g.slug AS group_slug
+    SELECT p.id, g.slug AS group_slug, g.access_code AS group_code
     FROM sam_mg_players p LEFT JOIN sam_mg_groups g ON g.id = p.group_id
     WHERE p.email_key = ?`).bind(email.key).first();
-  if (!row) return json({ ok: true });
+  if (!row || !allowed) return json({ ok: true });
   const now = Date.now();
-  const recent = await db.prepare("SELECT COUNT(*) AS n FROM sam_mg_player_login_tokens WHERE player_id = ? AND created_at > ?")
-    .bind(row.id, now - 3600_000).first();
-  if (recent && recent.n >= config.playerLoginMaxPerHour) return json({ ok: true });
   const token = randomHex(24);
   await db.batch([
     db.prepare("DELETE FROM sam_mg_player_login_tokens WHERE expires_at < ? OR used_at IS NOT NULL").bind(now),
     db.prepare("INSERT INTO sam_mg_player_login_tokens (id, player_id, token_hash, created_at, expires_at, used_at) VALUES (?, ?, ?, ?, ?, NULL)")
       .bind(randomHex(12), row.id, await sha256("sam-player-login:" + token), now, now + config.playerLoginTtlMs),
   ]);
-  const query = `player_login=${encodeURIComponent(token)}${row.group_slug ? `&group=${encodeURIComponent(row.group_slug)}` : ""}`;
-  const sendError = await sendLoginEmail({
+  const groupRef = row.group_slug && row.group_code ? `${row.group_slug}.${row.group_code}` : "";
+  const query = `player_login=${encodeURIComponent(token)}${groupRef ? `&group=${encodeURIComponent(groupRef)}` : ""}`;
+  defer(sendLoginEmail({
     to: email.email,
     subject: "Your Security Awareness Month sign-in link",
     intro: "Use this one-time link to sign back in to the Security Awareness Month mini-games:",
     link: `${new URL(request.url).origin}/minigames/?${query}`,
     ttlMs: config.playerLoginTtlMs,
-  }, env);
-  if (sendError) console.error("player login email failed");
+  }, env).then((err) => { if (err) console.error("player login email failed"); }));
   return json({ ok: true });
 }
 
@@ -571,6 +667,12 @@ export function scoreRun(key, log, elapsedMs, seed = "") {
   for (const e of log) {
     if (!e || typeof e !== "object" || !Number.isInteger(e.t) || e.t < 0) return { error: "Invalid run." };
     if (e.t < prev || e.t > elapsedMs + LATENCY_GRACE_MS) return { error: "Run rejected: timing doesn't add up." };
+    // Each event needs a human-plausible gap after the one before it (or after the
+    // start for the first). A script that stamps every click with the same time,
+    // or fires them back to back, fails here.
+    if (e.t - (prev === -Infinity ? 0 : prev) < (prev === -Infinity ? MIN_FIRST_EVENT_MS : MIN_EVENT_GAP_MS)) {
+      return { error: "Run rejected: timing doesn't add up." };
+    }
     prev = e.t;
     if (e.k === "c" && !inChain) {
       const id = typeof e.v === "string" ? e.v : "";
@@ -602,7 +704,7 @@ export function scoreRun(key, log, elapsedMs, seed = "") {
     if (elapsedMs < limitMs) return { error: "The run isn't finished yet." };
     durationMs = limitMs;
   } else if (elapsedMs < MIN_MS_PER_ACTION * (risks.size + key.chain.length)) {
-    return { error: "Run rejected: faster than humanly possible." };
+    return { error: "Run rejected: timing doesn't add up." };
   }
   const timeUp = durationMs >= limitMs;
   const missed = risks.size - found.size;
@@ -638,11 +740,12 @@ async function finishRun(request, db) {
   }
   const previous = await db.prepare("SELECT score, duration_ms FROM sam_mg_best WHERE player_id = ? AND game = ?").bind(player.id, run.game).first();
   const personalBest = !previous || result.score > previous.score || (result.score === previous.score && result.durationMs < previous.duration_ms);
-  // The run row is deleted in the same batch, so a run can only be scored once.
-  const [deleted] = await db.batch([
-    db.prepare("DELETE FROM sam_mg_runs WHERE id = ?").bind(runId),
+  // The upsert only applies while the run row still exists, and the delete comes
+  // after it, so a duplicate or concurrent /finish can't score or count twice.
+  const [, deleted] = await db.batch([
     db.prepare(`INSERT INTO sam_mg_best (player_id, game, score, duration_ms, wrong, hints, found, attempts, achieved_at, first_score)
-      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8, ?3)
+      SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8, ?3
+      WHERE EXISTS (SELECT 1 FROM sam_mg_runs WHERE id = ?9)
       ON CONFLICT (player_id, game) DO UPDATE SET
         attempts = attempts + 1,
         score = CASE WHEN excluded.score > score OR (excluded.score = score AND excluded.duration_ms < duration_ms) THEN excluded.score ELSE score END,
@@ -651,7 +754,8 @@ async function finishRun(request, db) {
         found = CASE WHEN excluded.score > score OR (excluded.score = score AND excluded.duration_ms < duration_ms) THEN excluded.found ELSE found END,
         achieved_at = CASE WHEN excluded.score > score OR (excluded.score = score AND excluded.duration_ms < duration_ms) THEN excluded.achieved_at ELSE achieved_at END,
         duration_ms = CASE WHEN excluded.score > score OR (excluded.score = score AND excluded.duration_ms < duration_ms) THEN excluded.duration_ms ELSE duration_ms END`)
-      .bind(player.id, run.game, result.score, result.durationMs, result.wrong, result.hints, result.found, now),
+      .bind(player.id, run.game, result.score, result.durationMs, result.wrong, result.hints, result.found, now, runId),
+    db.prepare("DELETE FROM sam_mg_runs WHERE id = ?").bind(runId),
   ]);
   if (!deleted.meta || deleted.meta.changes !== 1) return fail(409, "Run already submitted.");
   const board = await gameBoard(db, run.game, player.id, player.group_id || null);
@@ -749,16 +853,17 @@ async function overallBoard(db, playerId, groupId = null, games = GAME_IDS) {
   return { ...shape(results, playerId, true), gameCount: games.length };
 }
 
-async function getBoard(url, db) {
+async function getBoard(request, url, db) {
   const game = url.searchParams.get("game") || "overall";
   const playerId = url.searchParams.get("player") || "";
-  const groupSlug = url.searchParams.get("group") || "";
+  const groupRef = url.searchParams.get("group") || "";
   if (playerId && !/^[0-9a-f]{24}$/.test(playerId)) return fail(400, "Invalid player.");
   let group = null;
   let enabledGames = GAME_IDS;
-  if (groupSlug) {
-    group = await resolveGroupBySlug(db, groupSlug);
-    if (!group) return fail(404, "Unknown group.");
+  if (groupRef) {
+    const resolved = await resolveGroupRef(db, request, groupRef);
+    if (resolved.error) return resolved.error;
+    group = resolved.group;
     enabledGames = await enabledGamesForGroup(db, group.id);
   }
   if (game === "overall") return json({ ...(await overallBoard(db, playerId, group && group.id, enabledGames)), group: group ? group.slug : null });
@@ -793,7 +898,7 @@ async function listGroups(request, env, db) {
     params.push(...ids);
   }
   const groups = (await db.prepare(`
-    SELECT g.id, g.slug, g.name, g.active, g.force_full_names,
+    SELECT g.id, g.slug, g.name, g.active, g.force_full_names, g.access_code,
       (SELECT COUNT(*) FROM sam_mg_players p WHERE p.group_id = g.id) AS members
     FROM sam_mg_groups g
     ${where}
@@ -806,6 +911,8 @@ async function listGroups(request, env, db) {
     group.games = Object.fromEntries(GAME_IDS.map((id) => [id, map.has(id) ? map.get(id) : true]));
     group.forceFullNames = !!group.force_full_names;
     delete group.force_full_names;
+    group.accessCode = group.access_code || "";
+    delete group.access_code;
   }
   return json({ groups, globalAdmin: actor.globalAdmin });
 }
@@ -819,11 +926,12 @@ async function createGroup(request, env, db) {
   const slug = normalizeSlug((body && body.slug) || name);
   if (!slug) return fail(400, "Invalid group slug.");
   const id = randomHex(12);
+  const accessCode = randomHex(8);
   const now = Date.now();
   try {
     const batch = [
-      db.prepare("INSERT INTO sam_mg_groups (id, slug, name, active, created_at, created_by) VALUES (?, ?, ?, 1, ?, ?)")
-        .bind(id, slug, name, now, actor.email || null),
+      db.prepare("INSERT INTO sam_mg_groups (id, slug, name, active, access_code, created_at, created_by) VALUES (?, ?, ?, 1, ?, ?, ?)")
+        .bind(id, slug, name, accessCode, now, actor.email || null),
       ...GAME_IDS.map((game) =>
         db.prepare("INSERT INTO sam_mg_group_games (group_id, game, enabled, updated_at, updated_by) VALUES (?, ?, 1, ?, ?)")
           .bind(id, game, now, actor.email || null),
@@ -834,7 +942,7 @@ async function createGroup(request, env, db) {
     if (String(err && err.message).includes("UNIQUE")) return fail(409, "That group slug already exists.");
     throw err;
   }
-  return json({ id, slug, name, active: 1 }, 201);
+  return json({ id, slug, name, active: 1, accessCode }, 201);
 }
 
 async function updateGroup(request, env, db) {
@@ -859,10 +967,17 @@ async function updateGroup(request, env, db) {
     updates.push("force_full_names = ?");
     args.push(body.forceFullNames ? 1 : 0);
   }
+  // Rotating invalidates every link already shared for this group.
+  let newCode = null;
+  if (body && body.rotateCode === true) {
+    newCode = randomHex(8);
+    updates.push("access_code = ?");
+    args.push(newCode);
+  }
   if (!updates.length) return fail(400, "Nothing to update.");
   const result = await db.prepare(`UPDATE sam_mg_groups SET ${updates.join(", ")} WHERE id = ?`).bind(...args, groupId).run();
   if (!result.meta || result.meta.changes !== 1) return fail(404, "Group not found.");
-  return json({ ok: true });
+  return json(newCode ? { ok: true, accessCode: newCode } : { ok: true });
 }
 
 async function deleteGroup(request, env, db) {
@@ -892,16 +1007,17 @@ async function setGroupAdmin(request, env, db, remove = false) {
   if (!actor.globalAdmin) return fail(403, "Global admin access required.");
   const body = await readJson(request);
   const groupId = String(body && body.groupId || "");
-  const email = String(body && body.email || "").trim().toLowerCase();
+  const email = normalizeAdminEmail(body && body.email);
   if (!/^[0-9a-f]{24}$/.test(groupId)) return fail(400, "Invalid group.");
-  if (!email || !email.includes("@")) return fail(400, "Invalid email.");
+  if (!email) return fail(400, "Invalid email.");
   if (remove) {
     await db.prepare("DELETE FROM sam_mg_group_admins WHERE group_id = ? AND email = ?").bind(groupId, email).run();
     return json({ ok: true, invitationSent: false });
   }
   await db.prepare("INSERT OR IGNORE INTO sam_mg_group_admins (group_id, email, created_at) VALUES (?, ?, ?)")
     .bind(groupId, email, Date.now()).run();
-  const sendError = await issueAdminMagicLink(email, env, db, new URL(request.url).origin);
+  // Sent directly rather than deferred: the caller is an authenticated global admin who should see a failure.
+  const sendError = await sendAdminMagicLink(email, await mintAdminToken(email, env, db), env, new URL(request.url).origin);
   if (sendError) {
     return fail(502, "Group admin was added, but sending login email failed. Check RESEND_API_KEY and SAM_MINIGAMES_EMAIL_FROM.");
   }
@@ -939,10 +1055,10 @@ async function assignPlayerGroup(request, env, db) {
   return json({ ok: true });
 }
 
-async function getGroupConfig(url, db) {
-  const slug = url.searchParams.get("slug") || "";
-  const group = await resolveGroupBySlug(db, slug);
-  if (!group) return fail(404, "Unknown group.");
+async function getGroupConfig(request, url, db) {
+  const resolved = await resolveGroupRef(db, request, url.searchParams.get("slug") || "");
+  if (resolved.error) return resolved.error;
+  const group = resolved.group;
   return json({ slug: group.slug, name: group.name, forceFullNames: !!group.force_full_names, games: await enabledGamesForGroup(db, group.id) });
 }
 
@@ -950,8 +1066,9 @@ async function joinGroup(request, db) {
   const player = await authPlayer(request, db);
   if (!player) return fail(401, "Unknown player.");
   const body = await readJson(request);
-  const group = await resolveGroupBySlug(db, body && body.group);
-  if (!group) return fail(404, "Unknown group.");
+  const resolved = await resolveGroupRef(db, request, body && body.group);
+  if (resolved.error) return resolved.error;
+  const group = resolved.group;
   await db.prepare("UPDATE sam_mg_players SET group_id = ? WHERE id = ?").bind(group.id, player.id).run();
   return json({ ok: true, group: group.slug });
 }
@@ -1167,11 +1284,14 @@ async function removePlayer(request, env, url, db) {
   return json({ ok: true });
 }
 
-async function loginAdmin(request, env) {
+async function loginAdmin(request, env, db) {
+  if (!getMinigamesConfig(env).allowKeyLogin) return fail(404, "Not found.");
+  const net = await ipKey(request);
+  if (!(await hit(db, `key-ip:${net}`, KEY_LOGIN_ATTEMPTS_PER_IP, TEN_MINUTES_MS))) return fail(429, "Too many attempts. Try again later.");
   const body = await readJson(request);
   const email = String(body && body.email || "");
   const key = String(body && body.key || "");
-  if (!verifyAdminLogin(email, key, env)) return fail(403, "Invalid admin credentials.");
+  if (!(await verifyAdminLogin(email, key, env))) return fail(403, "Invalid admin credentials.");
   const cookie = await buildAdminSessionCookie(email, env);
   const token = await buildAdminSessionToken(email, env);
   if (!cookie) return fail(503, "Admin session is not configured.");
@@ -1185,14 +1305,22 @@ async function loginAdmin(request, env) {
   });
 }
 
-async function requestAdminLogin(request, env, db) {
+// Same shape as the player flow: limits first, then the lookup, then a deferred
+// send, so the response and its timing don't show whether an address is an admin.
+async function requestAdminLogin(request, env, db, defer) {
+  const config = getMinigamesConfig(env);
+  if (!config.resendApiKey || !config.emailFrom) return fail(503, "Email login is not configured on the server.");
   const body = await readJson(request);
   const email = normalizeAdminEmail(body && body.email);
   if (!email) return fail(400, "Enter a valid email.");
+  const net = await ipKey(request);
+  if (!(await hit(db, `adm-ip:${net}`, LOGIN_REQUESTS_PER_IP, TEN_MINUTES_MS))) return fail(429, "Too many sign-in requests. Try again later.");
+  const allowed = await loginAllowed(db, "adm", email, net, config.adminLoginMaxPerHour, config.loginCooldownMs);
   const authorized = await canEmailAdmin(email, env, db);
-  if (!authorized) return json({ ok: true });
-  const sendError = await issueAdminMagicLink(email, env, db, new URL(request.url).origin);
-  if (sendError) return sendError;
+  if (authorized && allowed) {
+    const token = await mintAdminToken(email, env, db);
+    defer(sendAdminMagicLink(email, token, env, new URL(request.url).origin).then((err) => { if (err) console.error("admin login email failed"); }));
+  }
   return json({ ok: true });
 }
 
@@ -1233,12 +1361,15 @@ async function logoutAdmin() {
   });
 }
 
-async function debugAdminAuth(request, env) {
+// Only admins see the configuration details. Anyone else just learns whether
+// something is wrong, not which weak setting to aim at.
+async function debugAdminAuth(request, env, db) {
   const data = getAdminAuthDebug(env);
-  const actor = await getTrustedAdminEmail(request, env);
+  const actor = await actorContext(request, env, db);
+  if (!actor.admin) return json({ ok: data.ok });
   return json({
     ...data,
-    currentSessionEmail: actor || null,
+    currentSessionEmail: actor.email || null,
   });
 }
 
@@ -1252,18 +1383,29 @@ export async function onRequest(context) {
   const route = "/" + [].concat(params.path || []).join("/");
   const url = new URL(request.url);
   const method = request.method;
+  // Browsers always send Origin on cross-site writes. Refusing a mismatch stops a
+  // page on another site (including a sibling subdomain) from acting with an
+  // admin's cookie. Non-browser clients send no Origin and carry no cookies.
+  if (method !== "GET" && method !== "HEAD") {
+    const origin = request.headers.get("origin");
+    if (origin && origin !== url.origin) return fail(403, "Cross-origin request blocked.");
+  }
+  const defer = (promise) => {
+    const safe = Promise.resolve(promise).catch((err) => console.error("deferred task failed", err));
+    if (typeof context.waitUntil === "function") context.waitUntil(safe);
+  };
   try {
     await ensureSchema(db);
-    if (route === "/board" && method === "GET") return await getBoard(url, db);
-    if (route === "/auth/request-login" && method === "POST") return await requestAdminLogin(request, env, db);
+    if (route === "/board" && method === "GET") return await getBoard(request, url, db);
+    if (route === "/auth/request-login" && method === "POST") return await requestAdminLogin(request, env, db, defer);
     if (route === "/auth/verify-login" && method === "POST") return await verifyAdminLoginToken(request, env, db);
-    if (route === "/auth/login" && method === "POST") return await loginAdmin(request, env);
+    if (route === "/auth/login" && method === "POST") return await loginAdmin(request, env, db);
     if (route === "/auth/logout" && method === "POST") return await logoutAdmin();
-    if (route === "/auth/debug" && method === "GET") return await debugAdminAuth(request, env);
-    if (route === "/group" && method === "GET") return await getGroupConfig(url, db);
+    if (route === "/auth/debug" && method === "GET") return await debugAdminAuth(request, env, db);
+    if (route === "/group" && method === "GET") return await getGroupConfig(request, url, db);
     if (route === "/group/join" && method === "POST") return await joinGroup(request, db);
-    if (route === "/player" && method === "POST") return await createPlayer(request, db);
-    if (route === "/player/login-request" && method === "POST") return await requestPlayerLogin(request, env, db);
+    if (route === "/player" && method === "POST") return await createPlayer(request, db, env);
+    if (route === "/player/login-request" && method === "POST") return await requestPlayerLogin(request, env, db, defer);
     if (route === "/player/login-verify" && method === "POST") return await verifyPlayerLogin(request, db);
     if (route === "/player" && method === "PATCH") return await updatePlayerProfile(request, env, db);
     if (route === "/player" && method === "DELETE") return await removePlayer(request, env, url, db);

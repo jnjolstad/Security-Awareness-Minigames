@@ -2,6 +2,7 @@ import { getMinigamesConfig } from "./_config.js";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ADMIN_KEY_MIN_LEN = 24;
+const SESSION_SECRET_MIN_LEN = 32;
 const SESSION_COOKIE = "sam_admin_session";
 const SESSION_MAX_AGE = 60 * 60 * 8;
 
@@ -23,12 +24,6 @@ function readConfiguredAdmins(env) {
       .map((v) => normalizeEmail(v))
       .filter(Boolean),
   );
-  if (admins.size === 0) {
-    for (const email of config.defaultAdminEmails) {
-      const clean = normalizeEmail(email);
-      if (clean) admins.add(clean);
-    }
-  }
   return admins;
 }
 
@@ -97,18 +92,21 @@ export function getAdminAuthDebug(env) {
   const fromEmail = normalizeEmail(fromAddress);
   const checks = {
     adminEmailsConfigured: configuredAdmins.length > 0,
-    usingDefaultAdminFallback: configuredAdmins.length === 0,
+    keyLoginEnabled: config.allowKeyLogin,
     adminKeyConfigured: adminKey.length > 0,
     adminKeyStrongEnough: adminKey.length >= ADMIN_KEY_MIN_LEN,
     sessionSecretConfigured: sessionSecret.length > 0,
+    sessionSecretStrongEnough: sessionSecret.length >= SESSION_SECRET_MIN_LEN,
     sessionSecretUsingAdminKey: sessionSecret.length > 0 && adminKey.length > 0 && safeEqual(sessionSecret, adminKey),
     resendConfigured: resendApiKey.length > 0,
     emailSenderConfigured: !!fromEmail,
   };
   const issues = [];
-  if (!checks.adminEmailsConfigured) issues.push("SAM_MINIGAMES_ADMIN_EMAILS is empty; default fallback list is active.");
-  if (!checks.sessionSecretConfigured) issues.push("SAM_MINIGAMES_SESSION_SECRET is missing.");
+  if (!checks.adminEmailsConfigured) issues.push("SAM_MINIGAMES_ADMIN_EMAILS is empty, so there is no global admin.");
+  if (!checks.sessionSecretConfigured) issues.push("SAM_MINIGAMES_SESSION_SECRET is missing, so admin sign-in is disabled.");
+  if (checks.sessionSecretConfigured && !checks.sessionSecretStrongEnough) issues.push(`SAM_MINIGAMES_SESSION_SECRET is shorter than ${SESSION_SECRET_MIN_LEN} characters.`);
   if (checks.sessionSecretUsingAdminKey) issues.push("SAM_MINIGAMES_SESSION_SECRET should be different from SAM_MINIGAMES_ADMIN_KEY.");
+  if (checks.keyLoginEnabled && !checks.adminKeyStrongEnough) issues.push(`Key login is enabled but SAM_MINIGAMES_ADMIN_KEY is shorter than ${ADMIN_KEY_MIN_LEN} characters.`);
   if (!checks.resendConfigured) issues.push("RESEND_API_KEY is missing (required for email-only admin login).");
   if (!checks.emailSenderConfigured) issues.push("SAM_MINIGAMES_EMAIL_FROM is missing (required for email-only admin login).");
   return { ok: issues.length === 0, checks, issues };
@@ -120,14 +118,22 @@ function extractBearerToken(authHeader) {
   return m ? m[1].trim() : "";
 }
 
-export function verifyAdminLogin(email, key, env) {
+async function digestHex(text) {
+  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(d), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Key login is off unless SAM_MINIGAMES_ALLOW_KEY_LOGIN is set. It skips the
+// email step, so it's kept only as a way back in if email delivery is down.
+export async function verifyAdminLogin(email, key, env) {
+  const config = getMinigamesConfig(env);
+  if (!config.allowKeyLogin) return false;
   const cleanEmail = normalizeEmail(email);
-  const configuredKey = getMinigamesConfig(env).adminKey;
-  const providedKey = String(key || "").trim();
+  const configuredKey = config.adminKey;
   if (!cleanEmail || !isAdminEmail(cleanEmail, env)) return false;
   if (configuredKey.length < ADMIN_KEY_MIN_LEN) return false;
-  if (providedKey.length !== configuredKey.length) return false;
-  return safeEqual(configuredKey, providedKey);
+  // Hash both sides so the comparison time doesn't depend on the key length.
+  return safeEqual(await digestHex(configuredKey), await digestHex(String(key || "").trim()));
 }
 
 export async function buildAdminSessionToken(email, env) {
@@ -142,11 +148,11 @@ export async function buildAdminSessionToken(email, env) {
 export async function buildAdminSessionCookie(email, env) {
   const token = await buildAdminSessionToken(email, env);
   if (!token) return "";
-  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_MAX_AGE}`;
+  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${SESSION_MAX_AGE}`;
 }
 
 export function clearAdminSessionCookie() {
-  return `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
+  return `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;
 }
 
 async function verifySessionToken(token, env) {

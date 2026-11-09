@@ -49,6 +49,8 @@ CREATE TABLE IF NOT EXISTS sam_mg_groups (
   name TEXT NOT NULL,
   active INTEGER NOT NULL DEFAULT 1,
   force_full_names INTEGER NOT NULL DEFAULT 0,
+  
+  access_code TEXT,
   created_at INTEGER NOT NULL,
   created_by TEXT
 );
@@ -92,3 +94,12 @@ CREATE TABLE IF NOT EXISTS sam_mg_player_login_tokens (
 );
 
 CREATE INDEX IF NOT EXISTS sam_mg_player_login_tokens_player ON sam_mg_player_login_tokens (player_id, created_at);
+
+CREATE TABLE IF NOT EXISTS sam_mg_rate_limits (
+  k TEXT PRIMARY KEY,
+  n INTEGER NOT NULL,
+  exp INTEGER NOT NULL
+);
+
+-- Groups created before access codes existed need one before their links work:
+-- UPDATE sam_mg_groups SET access_code = lower(hex(randomblob(8))) WHERE access_code IS NULL OR access_code = '';

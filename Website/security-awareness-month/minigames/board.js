@@ -4,11 +4,17 @@ window.Board = (() => {
   const API = window.MINIGAMES.api;
   const PLAYER_KEY = "minigames:player";
   const MEDALS = ["🥇", "🥈", "🥉"];
-  const GROUP_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,31}$/;
+  // A group link is "<slug>" or "<slug>.<16-char access code>".
+  const GROUP_REF_PATTERN = /^[a-z0-9][a-z0-9-]{1,31}(\.[0-9a-f]{16})?$/;
 
   function group() {
-    const slug = new URLSearchParams(location.search).get("group") || "";
-    return GROUP_SLUG_PATTERN.test(slug) ? slug : "";
+    const ref = new URLSearchParams(location.search).get("group") || "";
+    return GROUP_REF_PATTERN.test(ref) ? ref : "";
+  }
+
+  // The part that is safe to show on screen; the access code stays out of it.
+  function groupLabel() {
+    return group().split(".")[0];
   }
 
   function player() {
@@ -155,5 +161,5 @@ window.Board = (() => {
     return wrap;
   }
 
-  return { player, forget, register, requestLogin, consumeLoginLink, start, finish, get, joinGroup, group, table, seconds, call, order };
+  return { player, forget, register, requestLogin, consumeLoginLink, start, finish, get, joinGroup, group, groupLabel, table, seconds, call, order };
 })();

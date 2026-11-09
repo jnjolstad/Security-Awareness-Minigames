@@ -148,8 +148,10 @@
     }
     card.append(head);
 
-    const playPath = `${BASE}?group=${encodeURIComponent(group.slug)}`;
-    const boardPath = `${BASE}leaderboard/?group=${encodeURIComponent(group.slug)}#overall`;
+    // Group links carry the group's access code, so the slug alone gives no access.
+    const groupRef = group.accessCode ? `${group.slug}.${group.accessCode}` : group.slug;
+    const playPath = `${BASE}?group=${encodeURIComponent(groupRef)}`;
+    const boardPath = `${BASE}leaderboard/?group=${encodeURIComponent(groupRef)}#overall`;
     const tabs = el("div", { className: "group-tabs" });
     const settingsBtn = el("button", { type: "button", className: "small active", textContent: "Settings" });
     const leaderboardBtn = el("button", { type: "button", className: "small", textContent: "Leaderboard" });
@@ -165,7 +167,7 @@
       if (leaderboardLoaded) return;
       leaderboardLoaded = true;
       leaderboardPane.replaceChildren(el("p", { className: "muted", textContent: "Loading leaderboard…" }));
-      const data = await call(`/board?game=overall&group=${encodeURIComponent(group.slug)}`);
+      const data = await call(`/board?game=overall&group=${encodeURIComponent(groupRef)}`);
       const entries = Array.isArray(data && data.entries) ? data.entries : [];
       const gameCount = Number(data && data.gameCount || 0);
       if (!entries.length) {
@@ -219,6 +221,20 @@
     // Links to share.
     settingsPane.append(el("h3", { textContent: "Share" }), el("div", { className: "links" },
       linkRow("Play link", playPath), linkRow("Leaderboard", boardPath)));
+    settingsPane.append(el("p", { className: "muted", textContent: "These links contain the group's access code. Anyone with the link can join the group and see its leaderboard." }));
+    if (me.globalAdmin) {
+      const rotate = el("button", { type: "button", className: "small quiet", textContent: "Rotate link code" });
+      rotate.addEventListener("click", () => {
+        if (!confirm(`Rotate the link code for "${group.name}"? Every link already shared stops working and you will need to share the new ones.`)) return;
+        run(async () => {
+          const data = await call("/groups", { method: "PATCH", body: { groupId: group.id, rotateCode: true } });
+          group.accessCode = data.accessCode;
+          renderGroups();
+          toast("Link code rotated. Share the new links.");
+        }, rotate);
+      });
+      settingsPane.append(el("div", { className: "row" }, rotate));
+    }
 
     const forceNamesToggle = el("input", { type: "checkbox", checked: !!group.forceFullNames });
     forceNamesToggle.setAttribute("role", "switch");

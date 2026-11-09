@@ -43,7 +43,7 @@
     const tab = current();
     renderTabs(tab);
     $("title").textContent = tab.title;
-    const mode = groupSlug ? ` for group "${groupSlug}"` : "";
+    const mode = groupSlug ? ` for group "${Board.groupLabel()}"` : "";
     $("sub").textContent = tab.id === "overall"
       ? `Sum of your best score on every active game${mode}. Play them all to climb.`
       : `Best score per player on ${tab.title}${mode}.`;
