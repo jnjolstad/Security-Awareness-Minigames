@@ -69,7 +69,7 @@
     players = [];
     $("groups").replaceChildren();
     $("playersBackfillStatus").textContent = "";
-    $("playersRows").replaceChildren(el("tr", {}, el("td", { colSpan: 8, className: "muted", textContent: "Sign in to load players." })));
+    $("playersGroups").replaceChildren(el("p", { className: "muted", textContent: "Sign in to load players." }));
   }
 
   function showApp() {
@@ -292,21 +292,39 @@
     renderGroups();
   }
 
+  function comparePlayers(a, b) {
+    if ((b.score || 0) !== (a.score || 0)) return (b.score || 0) - (a.score || 0);
+    if ((a.durationMs || 0) !== (b.durationMs || 0)) return (a.durationMs || 0) - (b.durationMs || 0);
+    return (a.createdAt || 0) - (b.createdAt || 0);
+  }
+
   function renderPlayers() {
-    const body = $("playersRows");
+    const wrap = $("playersGroups");
     if (!players.length) {
-      body.replaceChildren(el("tr", {}, el("td", { colSpan: 8, className: "muted", textContent: "No players yet." })));
+      wrap.replaceChildren(el("p", { className: "muted", textContent: "No players yet." }));
       return;
     }
-    body.replaceChildren(...players.map((player) => {
+
+    const grouped = new Map();
+    for (const player of players) {
+      const key = player.groupId || "__no_group__";
+      const label = player.groupName || player.groupSlug || "No group";
+      if (!grouped.has(key)) grouped.set(key, { label, players: [] });
+      grouped.get(key).players.push(player);
+    }
+
+    const sectionNodes = Array.from(grouped.entries())
+      .sort((a, b) => a[1].label.localeCompare(b[1].label))
+      .map(([, group]) => {
+        const sortedPlayers = [...group.players].sort(comparePlayers);
+        const rows = sortedPlayers.map((player, index) => {
       const firstInput = el("input", { type: "text", value: player.firstName || "", maxLength: 40 });
       const lastInput = el("input", { type: "text", value: player.lastName || "", maxLength: 40 });
       const emailInput = el("input", { type: "email", value: player.email || "", maxLength: 120 });
       const anonymousToggle = el("input", { type: "checkbox", checked: !!player.isAnonymous });
       const forcePublicToggle = el("input", { type: "checkbox", checked: !!player.adminForcePublicIdentity });
       const saveBtn = el("button", { type: "button", className: "small", textContent: "Save" });
-      const rank = player.rank ? `#${player.rank}` : "–";
-      const group = player.groupName || player.groupSlug || "No group";
+      const rank = `#${index + 1}`;
 
       saveBtn.addEventListener("click", () => run(async () => {
         const payload = {
@@ -345,10 +363,31 @@
             el("label", {}, anonymousToggle, " Anonymous on public board"),
             el("label", {}, forcePublicToggle, " Force public full name"),
           )),
-        el("td", { textContent: group }),
         el("td", {}, saveBtn),
       );
-    }));
+        });
+
+        const table = el("table", { className: "players-table" },
+          el("thead", {},
+            el("tr", {},
+              el("th", { textContent: "#" }),
+              el("th", { textContent: "Name + email" }),
+              el("th", { textContent: "Public display" }),
+              el("th", { textContent: "Score" }),
+              el("th", { textContent: "Games" }),
+              el("th", { textContent: "Privacy controls" }),
+              el("th", { textContent: "Save" }),
+            )),
+          el("tbody", {}, ...rows),
+        );
+
+        return el("section", { className: "players-group" },
+          el("h3", { textContent: `${group.label} (${sortedPlayers.length} player${sortedPlayers.length === 1 ? "" : "s"})` }),
+          el("div", { className: "players-group-card" }, table),
+        );
+      });
+
+    wrap.replaceChildren(...sectionNodes);
   }
 
   async function loadPlayers() {

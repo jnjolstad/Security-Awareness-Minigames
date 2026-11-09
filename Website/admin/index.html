@@ -67,7 +67,9 @@
     .chip.ro { padding-right:12px; }
     .chip button { min-height:24px; padding:0 8px; border-radius:999px; border:0; background:transparent; color:var(--muted); font-size:16px; line-height:1; }
     .chip button:hover:enabled { background:#2a3a4b; color:var(--red); }
-    .players-wrap { overflow:auto; border:1px solid var(--line); border-radius:10px; }
+    .players-wrap { display:grid; gap:14px; }
+    .players-group h3 { margin:0 0 8px; }
+    .players-group-card { overflow:auto; border:1px solid var(--line); border-radius:10px; }
     .players-table { width:100%; border-collapse:collapse; font-size:13px; min-width:980px; }
     .players-table th, .players-table td { border-top:1px solid var(--line); padding:8px; vertical-align:top; }
     .players-table th { text-align:left; font-size:11px; letter-spacing:.08em; color:var(--muted); text-transform:uppercase; }
@@ -100,7 +102,7 @@
     @media (max-width:520px) { .link-row .label { width:100%; } }
   </style>
   <script src="/security-awareness-month/minigames/catalog.js" defer></script>
-  <script src="admin.js?v=20261109-2" defer></script>
+  <script src="admin.js?v=20261109-3" defer></script>
 </head>
 <body>
   <main>
@@ -139,24 +141,8 @@
           <button type="button" class="small" id="playersBackfill">Backfill legacy players</button>
           <span class="muted" id="playersBackfillStatus"></span>
         </div>
-        <div class="players-wrap">
-          <table class="players-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Name + email</th>
-                <th>Public display</th>
-                <th>Score</th>
-                <th>Games</th>
-                <th>Privacy controls</th>
-                <th>Group</th>
-                <th>Save</th>
-              </tr>
-            </thead>
-            <tbody id="playersRows">
-              <tr><td colspan="8" class="muted">Loading…</td></tr>
-            </tbody>
-          </table>
+        <div class="players-wrap" id="playersGroups">
+          <p class="muted">Loading…</p>
         </div>
       </section>
 
