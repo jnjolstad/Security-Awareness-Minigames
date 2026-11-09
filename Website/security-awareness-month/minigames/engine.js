@@ -379,7 +379,7 @@
     box.replaceChildren();
     const line = (cls, text) => box.append(el("p", { className: cls }, text));
     if (!state.runId) {
-      line("muted", "Unranked run. Pick a nickname before you start to get on the leaderboard.");
+      line("muted", "Unranked run. Register your profile before you start to get on the leaderboard.");
     } else if (!state.result) {
       line("muted", "Submitting to the leaderboard…");
       return;
@@ -449,14 +449,6 @@
     renderRanked();
   }
 
-  function suggestedNickname() {
-    const adjectives = ["Able", "Amber", "Bold", "Brave", "Bright", "Brisk", "Calm", "Clever", "Cosmic", "Crisp", "Curious", "Daring", "Eager", "Fair", "Fresh", "Gentle", "Happy", "Jolly", "Keen", "Kind", "Lucky", "Mellow", "Nimble", "Noble", "Patient", "Playful", "Quick", "Quiet", "Ready", "Steady", "Sunny", "Swift", "Trusty", "Vivid", "Warm", "Wise"];
-    const nouns = ["Badger", "Beaver", "Bluejay", "Cactus", "Cloud", "Comet", "Coyote", "Cricket", "Dolphin", "Falcon", "Finch", "Glacier", "Harbor", "Heron", "Kestrel", "Koala", "Lynx", "Maple", "Meadow", "Meteor", "Mountain", "Newt", "Otter", "Orchid", "Panda", "Penguin", "Pinecone", "Planet", "Raven", "River", "Robin", "Sparrow", "Summit", "Tiger", "Turtle", "Valley", "Willow", "Wren", "Yak", "Zebra"];
-    const values = new Uint32Array(3);
-    crypto.getRandomValues(values);
-    return `${adjectives[values[0] % adjectives.length]}${nouns[values[1] % nouns.length]}${String(values[2] % 1000).padStart(3, "0")}`;
-  }
-
   function renderWho() {
     const who = $("who");
     who.replaceChildren();
@@ -467,10 +459,10 @@
     const p = Board.player();
     if (p) {
       const line = el("p", { className: "playing-as" }, "Playing as ");
-      line.append(el("strong", {}, p.name), " ");
+      line.append(el("strong", {}, p.publicName || p.name), " ");
       const change = el("button", { type: "button", className: "linkish" }, "change");
       change.addEventListener("click", () => {
-        if (confirm("Use a different nickname? Scores stay with the old one, and this browser forgets it.")) {
+        if (confirm("Use a different profile? Scores stay with the old one, and this browser forgets it.")) {
           Board.forget();
           renderWho();
         }
@@ -478,15 +470,22 @@
       line.append(change);
       who.append(line);
     } else {
-      const currentNick = $("nick");
-      const label = el("label", { htmlFor: "nick" }, "Suggested nickname — edit it or enter your own");
-      const input = el("input", {
-        id: "nick",
-        maxLength: 20,
-        autocomplete: "nickname",
-        value: currentNick && currentNick.value.trim() ? currentNick.value : suggestedNickname(),
-      });
-      who.append(label, input, el("small", { className: "muted" }, "Nicknames are public. Please don't use your full name."));
+      const first = el("input", { id: "firstName", maxLength: 40, autocomplete: "given-name", placeholder: "First name" });
+      const last = el("input", { id: "lastName", maxLength: 40, autocomplete: "family-name", placeholder: "Last name" });
+      const email = el("input", { id: "email", type: "email", maxLength: 120, autocomplete: "email", placeholder: "Work email" });
+      const publicToggle = el("input", { id: "showFullName", type: "checkbox" });
+      const toggleWrap = el("label", { className: "muted" }, publicToggle, " Show full name on leaderboard");
+      publicToggle.checked = false;
+      who.append(
+        el("label", { htmlFor: "firstName" }, "First name"),
+        first,
+        el("label", { htmlFor: "lastName" }, "Last name"),
+        last,
+        el("label", { htmlFor: "email" }, "Email"),
+        email,
+        toggleWrap,
+        el("small", { className: "muted" }, "Public leaderboard shows Firstname + last initial by default (for example: Alex N.)."),
+      );
       const solo = el("button", { type: "button", className: "linkish", id: "unranked" }, "Play without the leaderboard");
       solo.addEventListener("click", () => begin(null));
       who.append(solo);
@@ -513,18 +512,25 @@
     btn.disabled = true;
     try {
       if (!Board.player()) {
-        const name = ($("nick").value || "").trim();
-        if (!name) {
-          msg.textContent = "Pick a nickname, or play without the leaderboard.";
+        const firstName = ($("firstName").value || "").trim();
+        const lastName = ($("lastName").value || "").trim();
+        const email = ($("email").value || "").trim();
+        if (!firstName || !lastName || !email) {
+          msg.textContent = "Enter first name, last name and email, or play without the leaderboard.";
           return;
         }
-        await Board.register(name);
+        await Board.register({
+          firstName,
+          lastName,
+          email,
+          isAnonymous: !$("showFullName").checked,
+        });
       }
       const { runId } = await Board.start(G.id);
       begin(runId);
     } catch (err) {
       msg.textContent = err.status === 401
-        ? "That nickname has been removed from the leaderboard. Pick a new one and press start again."
+        ? "That profile has been removed from the leaderboard. Register again and press start."
         : err.message;
       renderWho();
     } finally {

@@ -2,6 +2,12 @@ CREATE TABLE IF NOT EXISTS sam_mg_players (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   name_key TEXT NOT NULL UNIQUE,
+  first_name TEXT,
+  last_name TEXT,
+  email TEXT,
+  email_key TEXT,
+  is_anonymous INTEGER NOT NULL DEFAULT 1,
+  admin_force_public INTEGER NOT NULL DEFAULT 0,
   key_hash TEXT NOT NULL,
   ip_hash TEXT,
   created_at INTEGER NOT NULL,
@@ -10,6 +16,7 @@ CREATE TABLE IF NOT EXISTS sam_mg_players (
 
 CREATE INDEX IF NOT EXISTS sam_mg_players_ip ON sam_mg_players (ip_hash, created_at);
 CREATE INDEX IF NOT EXISTS sam_mg_players_group ON sam_mg_players (group_id);
+CREATE UNIQUE INDEX IF NOT EXISTS sam_mg_players_email_key ON sam_mg_players (email_key);
 
 CREATE TABLE IF NOT EXISTS sam_mg_runs (
   id TEXT PRIMARY KEY,

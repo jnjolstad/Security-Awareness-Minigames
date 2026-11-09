@@ -1,6 +1,7 @@
 // Leaderboard API for /security-awareness-month/minigames.
 //
-// Players reserve a nickname and get a private key (only its hash is stored).
+// Players register with first name, last name and email, then get a private key
+// (only its hash is stored).
 // A ranked run is opened with /start, which records the server start time.
 // /finish receives the click log and re-scores it against the answer key in
 // _minigames-key.js, using the server clock, so a browser cannot report its
@@ -25,15 +26,8 @@ const TOP = 10;
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,31}$/;
 const ADMIN_LOGIN_TTL_MS = 15 * 60 * 1000;
 
-const NAME_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N} ._-]{1,19}$/u;
-const BLOCKED_TERMS = [
-  // Slurs/harassment (English + Norwegian), checked on normalized text.
-  "fuck", "shit", "cunt", "nigg", "fag", "rape",
-  "faen", "helvete", "hore", "fitte", "kuk", "neger",
-  // Protected words to reduce impersonation/confusion.
-  "admin", "moderator", "northwind",
-];
-const LEET = { "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b", "@": "a", "$": "s", "!": "i" };
+const PERSON_NAME_PATTERN = /^[\p{L}][\p{L}' -]{0,39}$/u;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS sam_mg_players (
@@ -86,6 +80,37 @@ async function ensureSchema(db) {
     if (!/duplicate column/i.test(String(err && (err.cause?.message || err.message)))) throw err;
   }
   await db.prepare("CREATE INDEX IF NOT EXISTS sam_mg_players_group ON sam_mg_players (group_id)").run();
+  try {
+    await db.prepare("ALTER TABLE sam_mg_players ADD COLUMN first_name TEXT").run();
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err && (err.cause?.message || err.message)))) throw err;
+  }
+  try {
+    await db.prepare("ALTER TABLE sam_mg_players ADD COLUMN last_name TEXT").run();
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err && (err.cause?.message || err.message)))) throw err;
+  }
+  try {
+    await db.prepare("ALTER TABLE sam_mg_players ADD COLUMN email TEXT").run();
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err && (err.cause?.message || err.message)))) throw err;
+  }
+  try {
+    await db.prepare("ALTER TABLE sam_mg_players ADD COLUMN email_key TEXT").run();
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err && (err.cause?.message || err.message)))) throw err;
+  }
+  try {
+    await db.prepare("ALTER TABLE sam_mg_players ADD COLUMN is_anonymous INTEGER NOT NULL DEFAULT 1").run();
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err && (err.cause?.message || err.message)))) throw err;
+  }
+  try {
+    await db.prepare("ALTER TABLE sam_mg_players ADD COLUMN admin_force_public INTEGER NOT NULL DEFAULT 0").run();
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err && (err.cause?.message || err.message)))) throw err;
+  }
+  await db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS sam_mg_players_email_key ON sam_mg_players (email_key)").run();
   schemaReady = true;
 }
 
@@ -146,22 +171,74 @@ async function authPlayer(request, db) {
   const id = request.headers.get("x-player") || "";
   const key = request.headers.get("x-player-key") || "";
   if (!/^[0-9a-f]{24}$/.test(id) || !/^[0-9a-f]{64}$/.test(key)) return null;
-  const row = await db.prepare("SELECT id, name, key_hash, group_id FROM sam_mg_players WHERE id = ?").bind(id).first();
+  const row = await db.prepare("SELECT id, name, first_name, last_name, email, is_anonymous, admin_force_public, key_hash, group_id FROM sam_mg_players WHERE id = ?").bind(id).first();
   if (!row || !safeEqual(row.key_hash, await sha256(key))) return null;
   return row;
 }
 
-function cleanName(raw) {
+function cleanPersonName(raw, fieldLabel) {
   const name = String(raw || "").normalize("NFKC").replace(/\s+/g, " ").trim();
-  if (!NAME_PATTERN.test(name)) return { error: "Nickname must be 2–20 letters, numbers, spaces, dots, dashes or underscores." };
-  const folded = name
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[0134578@$!]/g, (c) => LEET[c] || c)
-    .replace(/[^a-z0-9]/g, "");
-  if (BLOCKED_TERMS.some((term) => folded.includes(term))) return { error: "Please pick a different nickname." };
-  return { name, key: name.toLowerCase().replace(/[\s._-]/g, "") };
+  if (!PERSON_NAME_PATTERN.test(name)) return { error: `${fieldLabel} must be 1-40 letters and can include spaces, apostrophes and dashes.` };
+  return { name };
+}
+
+function cleanEmail(raw) {
+  const email = String(raw || "").normalize("NFKC").trim().toLowerCase();
+  if (!EMAIL_PATTERN.test(email)) return { error: "Enter a valid email address." };
+  return { email, key: email };
+}
+
+function splitLegacyName(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return { firstName: "", lastName: "" };
+  const parts = text.split(/\s+/);
+  if (parts.length === 1) return { firstName: parts[0], lastName: "-" };
+  return { firstName: parts.slice(0, -1).join(" "), lastName: parts[parts.length - 1] };
+}
+
+function profileFromRow(row) {
+  const firstName = String(row && row.first_name || "").trim();
+  const lastName = String(row && row.last_name || "").trim();
+  if (firstName && lastName) return { firstName, lastName };
+  return splitLegacyName(row && row.name);
+}
+
+function fullNameFromRow(row) {
+  const { firstName, lastName } = profileFromRow(row);
+  return `${firstName} ${lastName}`.trim();
+}
+
+function publicNameFromRow(row) {
+  const { firstName, lastName } = profileFromRow(row);
+  const first = firstName || "Player";
+  const forcePublic = !!(row && row.admin_force_public);
+  if (forcePublic) return `${first} ${lastName}`.trim();
+  const initial = (lastName || "").charAt(0).toUpperCase();
+  return initial ? `${first} ${initial}.` : first;
+}
+
+function cleanProfile(body, allowLegacy = false) {
+  const rawFirst = body && body.firstName;
+  const rawLast = body && body.lastName;
+  const rawEmail = body && body.email;
+  const legacy = allowLegacy ? splitLegacyName(body && body.name) : { firstName: "", lastName: "" };
+  const first = cleanPersonName(rawFirst || legacy.firstName, "First name");
+  if (first.error) return first;
+  const last = cleanPersonName(rawLast || legacy.lastName, "Last name");
+  if (last.error) return last;
+  const email = cleanEmail(rawEmail);
+  if (email.error) return email;
+  const isAnonymous = body && Object.prototype.hasOwnProperty.call(body, "isAnonymous")
+    ? !!body.isAnonymous
+    : true;
+  return {
+    firstName: first.name,
+    lastName: last.name,
+    fullName: `${first.name} ${last.name}`.trim(),
+    email: email.email,
+    emailKey: email.key,
+    isAnonymous,
+  };
 }
 
 function normalizeSlug(raw) {
@@ -247,7 +324,7 @@ function canManageGroup(actor, groupId) {
 
 async function createPlayer(request, db) {
   const body = await readJson(request);
-  const clean = cleanName(body && body.name);
+  const clean = cleanProfile(body, true);
   if (clean.error) return fail(400, clean.error);
   let groupId = null;
   const groupSlug = normalizeSlug(body && body.group);
@@ -259,22 +336,47 @@ async function createPlayer(request, db) {
   const ipHash = (await sha256("sam-mg:" + (request.headers.get("cf-connecting-ip") || "unknown"))).slice(0, 32);
   const hourAgo = Date.now() - 3600_000;
   const recent = await db.prepare("SELECT COUNT(*) AS n FROM sam_mg_players WHERE ip_hash = ? AND created_at > ?").bind(ipHash, hourAgo).first();
-  if (recent && recent.n >= MAX_NEW_PLAYERS_PER_IP_HOUR) return fail(429, "Too many new nicknames from this network. Try again later.");
+  if (recent && recent.n >= MAX_NEW_PLAYERS_PER_IP_HOUR) return fail(429, "Too many new profiles from this network. Try again later.");
   const id = randomHex(12);
   const key = randomHex(32);
   try {
-    await db.prepare("INSERT INTO sam_mg_players (id, name, name_key, key_hash, ip_hash, created_at, group_id) VALUES (?, ?, ?, ?, ?, ?, ?)")
-      .bind(id, clean.name, clean.key, await sha256(key), ipHash, Date.now(), groupId).run();
+    await db.prepare(`INSERT INTO sam_mg_players (
+      id, name, first_name, last_name, email, email_key, is_anonymous, admin_force_public, name_key, key_hash, ip_hash, created_at, group_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`)
+      .bind(
+        id,
+        clean.fullName,
+        clean.firstName,
+        clean.lastName,
+        clean.email,
+        clean.emailKey,
+        clean.isAnonymous ? 1 : 0,
+        clean.emailKey,
+        await sha256(key),
+        ipHash,
+        Date.now(),
+        groupId,
+      ).run();
   } catch (err) {
-    if (String(err && err.message).includes("UNIQUE")) return fail(409, "That nickname is taken. Try another.");
+    if (String(err && err.message).includes("UNIQUE")) return fail(409, "That email is already registered. Use another email.");
     throw err;
   }
-  return json({ id, key, name: clean.name });
+  const player = {
+    id,
+    key,
+    name: clean.fullName,
+    firstName: clean.firstName,
+    lastName: clean.lastName,
+    email: clean.email,
+    isAnonymous: clean.isAnonymous,
+    publicName: publicNameFromRow({ first_name: clean.firstName, last_name: clean.lastName, admin_force_public: 0 }),
+  };
+  return json(player);
 }
 
 async function startRun(request, db) {
   const player = await authPlayer(request, db);
-  if (!player) return fail(401, "Unknown player. Pick your nickname again.");
+  if (!player) return fail(401, "Unknown player. Register your profile again.");
   const body = await readJson(request);
   const game = body && GAMES[body.game] ? body.game : null;
   if (!game) return fail(400, "This game isn't ranked.");
@@ -404,7 +506,7 @@ async function finishRun(request, db) {
 function shape(rows, playerId, overall) {
   const entries = rows.map((r) => ({
     rank: r.rk,
-    name: r.name,
+    name: publicNameFromRow(r),
     playerId: r.player_id,
     score: r.score,
     durationMs: r.duration_ms,
@@ -427,13 +529,13 @@ async function gameBoard(db, game, playerId, groupId = null) {
   const binds = groupId ? [game, playerId || "", groupId] : [game, playerId || ""];
   const { results } = await db.prepare(`
     WITH scoped AS (
-      SELECT b.player_id, b.score, b.duration_ms, b.first_score, b.achieved_at, p.name
+      SELECT b.player_id, b.score, b.duration_ms, b.first_score, b.achieved_at, p.name, p.first_name, p.last_name, p.admin_force_public
       FROM sam_mg_best b
       JOIN sam_mg_players p ON p.id = b.player_id
       WHERE b.game = ?1 AND ${groupClause}
     ),
     r AS (
-      SELECT player_id, name, score, duration_ms, first_score,
+      SELECT player_id, name, first_name, last_name, admin_force_public, score, duration_ms, first_score,
         ROW_NUMBER() OVER (ORDER BY score DESC, duration_ms ASC, achieved_at ASC) AS rk
       FROM scoped)
     SELECT r.*, (SELECT COUNT(*) FROM r) AS total
@@ -449,14 +551,25 @@ async function overallBoard(db, playerId, groupId = null, games = GAME_IDS) {
   const params = groupId ? [playerId || "", ...games, groupId] : [playerId || "", ...games];
   const { results } = await db.prepare(`
     WITH scoped AS (
-      SELECT b.player_id, b.score, b.duration_ms, b.first_score, b.achieved_at, p.name
+      SELECT b.player_id, b.score, b.duration_ms, b.first_score, b.achieved_at, p.name, p.first_name, p.last_name, p.admin_force_public
       FROM sam_mg_best b
       JOIN sam_mg_players p ON p.id = b.player_id
       WHERE b.game IN (${marks}) AND ${groupClause}
     ),
     t AS (
-      SELECT player_id, name, SUM(score) AS score, SUM(duration_ms) AS duration_ms, SUM(first_score) AS first_score, COUNT(*) AS games, MAX(achieved_at) AS last
-      FROM scoped GROUP BY player_id, name),
+      SELECT
+        player_id,
+        MAX(name) AS name,
+        MAX(first_name) AS first_name,
+        MAX(last_name) AS last_name,
+        MAX(admin_force_public) AS admin_force_public,
+        SUM(score) AS score,
+        SUM(duration_ms) AS duration_ms,
+        SUM(first_score) AS first_score,
+        COUNT(*) AS games,
+        MAX(achieved_at) AS last
+      FROM scoped
+      GROUP BY player_id),
     r AS (SELECT t.*, ROW_NUMBER() OVER (ORDER BY score DESC, duration_ms ASC, last ASC) AS rk FROM t)
     SELECT r.*, (SELECT COUNT(*) FROM r) AS total
     FROM r
@@ -665,11 +778,209 @@ async function joinGroup(request, db) {
   return json({ ok: true, group: group.slug });
 }
 
-async function removePlayer(request, env, url, db) {
+function canManagePlayer(actor, playerGroupId) {
+  if (!actor || !actor.admin) return false;
+  if (actor.globalAdmin) return true;
+  return !!(playerGroupId && actor.groupIds.has(playerGroupId));
+}
+
+function rankPlayers(rows) {
+  const sorted = [...rows].sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (a.durationMs !== b.durationMs) return a.durationMs - b.durationMs;
+    return a.createdAt - b.createdAt;
+  });
+  return sorted.map((row, i) => ({ ...row, rank: i + 1 }));
+}
+
+async function listPlayers(request, env, db) {
+  const actor = await actorContext(request, env, db);
+  if (!actor.admin) return fail(403, "Admin access required.");
+  const params = [];
+  let where = "";
+  if (!actor.globalAdmin) {
+    const ids = Array.from(actor.groupIds);
+    if (!ids.length) return json({ players: [] });
+    where = `WHERE p.group_id IN (${ids.map((_, i) => `?${i + 1}`).join(", ")})`;
+    params.push(...ids);
+  }
+  const rows = (await db.prepare(`
+    SELECT
+      p.id,
+      p.name,
+      p.first_name,
+      p.last_name,
+      p.email,
+      p.is_anonymous,
+      p.admin_force_public,
+      p.group_id,
+      p.created_at,
+      g.slug AS group_slug,
+      g.name AS group_name,
+      COALESCE(SUM(b.score), 0) AS score,
+      COALESCE(SUM(b.duration_ms), 0) AS duration_ms,
+      COALESCE(SUM(b.first_score), 0) AS first_score,
+      COUNT(b.game) AS games
+    FROM sam_mg_players p
+    LEFT JOIN sam_mg_best b ON b.player_id = p.id
+    LEFT JOIN sam_mg_groups g ON g.id = p.group_id
+    ${where}
+    GROUP BY p.id
+  `).bind(...params).all()).results || [];
+  const players = rankPlayers(rows.map((row) => ({
+    id: row.id,
+    fullName: fullNameFromRow(row),
+    firstName: profileFromRow(row).firstName,
+    lastName: profileFromRow(row).lastName,
+    email: String(row.email || "").trim(),
+    publicName: publicNameFromRow(row),
+    isAnonymous: !!row.is_anonymous,
+    adminForcePublicIdentity: !!row.admin_force_public,
+    score: Number(row.score || 0),
+    durationMs: Number(row.duration_ms || 0),
+    firstScore: Number(row.first_score || 0),
+    games: Number(row.games || 0),
+    groupId: row.group_id || null,
+    groupSlug: row.group_slug || null,
+    groupName: row.group_name || null,
+    createdAt: Number(row.created_at || 0),
+  })));
+  return json({ players });
+}
+
+async function backfillPlayers(request, env, db) {
   const actor = await actorContext(request, env, db);
   if (!actor.globalAdmin) return fail(403, "Global admin access required.");
+  const rows = (await db.prepare(`
+    SELECT id, name, first_name, last_name, email, email_key, is_anonymous, admin_force_public
+    FROM sam_mg_players
+    WHERE
+      first_name IS NULL OR TRIM(first_name) = ''
+      OR last_name IS NULL OR TRIM(last_name) = ''
+      OR is_anonymous IS NULL
+      OR admin_force_public IS NULL
+      OR (email IS NOT NULL AND TRIM(email) <> '' AND (email_key IS NULL OR TRIM(email_key) = ''))
+  `).all()).results || [];
+  let updated = 0;
+  let touchedEmailKey = 0;
+  for (const row of rows) {
+    const profile = profileFromRow(row);
+    const firstName = profile.firstName || "Player";
+    const lastName = profile.lastName || "-";
+    const rawEmail = String(row.email || "").trim().toLowerCase();
+    const emailKey = rawEmail ? rawEmail : null;
+    if (emailKey) touchedEmailKey += 1;
+    await db.prepare(`
+      UPDATE sam_mg_players
+      SET
+        first_name = ?,
+        last_name = ?,
+        is_anonymous = COALESCE(is_anonymous, 1),
+        admin_force_public = COALESCE(admin_force_public, 0),
+        email_key = CASE
+          WHEN ? IS NOT NULL AND (? IS NULL OR TRIM(?) = '') THEN ?
+          ELSE email_key
+        END
+      WHERE id = ?
+    `).bind(
+      firstName,
+      lastName,
+      emailKey,
+      row.email_key,
+      row.email_key,
+      emailKey,
+      row.id,
+    ).run();
+    updated += 1;
+  }
+  return json({
+    ok: true,
+    scanned: rows.length,
+    updated,
+    emailKeysNormalized: touchedEmailKey,
+  });
+}
+
+async function updatePlayerProfile(request, env, db) {
+  const actor = await actorContext(request, env, db);
+  if (!actor.admin) return fail(403, "Admin access required.");
+  const body = await readJson(request);
+  const playerId = String(body && body.playerId || "");
+  if (!/^[0-9a-f]{24}$/.test(playerId)) return fail(400, "Invalid player.");
+  const current = await db.prepare(
+    "SELECT id, name, first_name, last_name, email, email_key, is_anonymous, admin_force_public, group_id FROM sam_mg_players WHERE id = ?",
+  ).bind(playerId).first();
+  if (!current) return fail(404, "Player not found.");
+  if (!canManagePlayer(actor, current.group_id)) return fail(403, "You can't manage this player.");
+
+  const firstCandidate = Object.prototype.hasOwnProperty.call(body || {}, "firstName") ? body.firstName : current.first_name;
+  const lastCandidate = Object.prototype.hasOwnProperty.call(body || {}, "lastName") ? body.lastName : current.last_name;
+  const emailCandidate = Object.prototype.hasOwnProperty.call(body || {}, "email") ? body.email : current.email;
+  const clean = cleanProfile({
+    firstName: firstCandidate,
+    lastName: lastCandidate,
+    email: emailCandidate,
+    isAnonymous: Object.prototype.hasOwnProperty.call(body || {}, "isAnonymous") ? !!body.isAnonymous : !!current.is_anonymous,
+  });
+  if (clean.error) return fail(400, clean.error);
+  const adminForcePublic = Object.prototype.hasOwnProperty.call(body || {}, "adminForcePublicIdentity")
+    ? !!body.adminForcePublicIdentity
+    : !!current.admin_force_public;
+  try {
+    const result = await db.prepare(`
+      UPDATE sam_mg_players
+      SET
+        name = ?,
+        first_name = ?,
+        last_name = ?,
+        email = ?,
+        email_key = ?,
+        name_key = ?,
+        is_anonymous = ?,
+        admin_force_public = ?
+      WHERE id = ?
+    `).bind(
+      clean.fullName,
+      clean.firstName,
+      clean.lastName,
+      clean.email,
+      clean.emailKey,
+      clean.emailKey,
+      clean.isAnonymous ? 1 : 0,
+      adminForcePublic ? 1 : 0,
+      playerId,
+    ).run();
+    if (!result.meta || result.meta.changes !== 1) return fail(404, "Player not found.");
+  } catch (err) {
+    if (String(err && err.message).includes("UNIQUE")) return fail(409, "That email is already registered.");
+    throw err;
+  }
+  return json({
+    ok: true,
+    player: {
+      id: playerId,
+      fullName: clean.fullName,
+      firstName: clean.firstName,
+      lastName: clean.lastName,
+      email: clean.email,
+      isAnonymous: clean.isAnonymous,
+      adminForcePublicIdentity: adminForcePublic,
+      publicName: publicNameFromRow({
+        first_name: clean.firstName,
+        last_name: clean.lastName,
+        admin_force_public: adminForcePublic ? 1 : 0,
+      }),
+    },
+  });
+}
+
+async function removePlayer(request, env, url, db) {
+  const actor = await actorContext(request, env, db);
   const id = url.searchParams.get("id") || "";
   if (!/^[0-9a-f]{24}$/.test(id)) return fail(400, "Invalid player.");
+  const player = await db.prepare("SELECT group_id FROM sam_mg_players WHERE id = ?").bind(id).first();
+  if (!player) return fail(404, "Player not found.");
+  if (!canManagePlayer(actor, player.group_id)) return fail(403, "You can't remove this player.");
   await db.batch([
     db.prepare("DELETE FROM sam_mg_best WHERE player_id = ?").bind(id),
     db.prepare("DELETE FROM sam_mg_runs WHERE player_id = ?").bind(id),
@@ -774,7 +1085,10 @@ export async function onRequest(context) {
     if (route === "/group" && method === "GET") return await getGroupConfig(url, db);
     if (route === "/group/join" && method === "POST") return await joinGroup(request, db);
     if (route === "/player" && method === "POST") return await createPlayer(request, db);
+    if (route === "/player" && method === "PATCH") return await updatePlayerProfile(request, env, db);
     if (route === "/player" && method === "DELETE") return await removePlayer(request, env, url, db);
+    if (route === "/players" && method === "GET") return await listPlayers(request, env, db);
+    if (route === "/players/backfill" && method === "POST") return await backfillPlayers(request, env, db);
     if (route === "/group/player" && method === "POST") return await assignPlayerGroup(request, env, db);
     if (route === "/start" && method === "POST") return await startRun(request, db);
     if (route === "/finish" && method === "POST") return await finishRun(request, db);

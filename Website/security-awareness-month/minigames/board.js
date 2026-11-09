@@ -36,8 +36,12 @@ window.Board = (() => {
     return data;
   }
 
-  async function register(name) {
-    const data = await call("/player", { method: "POST", body: { name, group: group() || undefined } });
+  async function register(profileOrName) {
+    const payload = typeof profileOrName === "string"
+      ? { name: profileOrName }
+      : { ...(profileOrName || {}) };
+    payload.group = group() || undefined;
+    const data = await call("/player", { method: "POST", body: payload });
     localStorage.setItem(PLAYER_KEY, JSON.stringify(data));
     return data;
   }

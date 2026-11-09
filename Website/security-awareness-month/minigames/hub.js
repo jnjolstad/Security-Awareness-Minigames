@@ -65,7 +65,7 @@
       if (data.me) {
         box.append(el("p", { className: "chase" }, `You're #${data.me.rank} with ${data.me.score} points.`));
       } else if (!Board.player()) {
-        box.append(el("p", { className: "muted" }, "Pick a nickname when you start a game to join."));
+        box.append(el("p", { className: "muted" }, "Register your profile when you start a game to join."));
       }
     }).catch(() => {
       document.getElementById("champ").replaceChildren(el("p", { className: "muted" }, "Leaderboard unavailable right now. You can still play."));

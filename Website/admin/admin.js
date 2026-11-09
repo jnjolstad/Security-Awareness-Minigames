@@ -1,5 +1,5 @@
 "use strict";
-// build-marker: admin-panel-v3-2026-11-06
+// build-marker: admin-panel-v4-2026-11-09
 
 (() => {
   const API = "/security-awareness-month/minigames-api";
@@ -11,6 +11,7 @@
   const $ = (id) => document.getElementById(id);
   let me = { admin: false, globalAdmin: false, email: "" };
   let groups = [];
+  let players = [];
 
   function el(tag, props = {}, ...children) {
     const node = Object.assign(document.createElement(tag), props);
@@ -65,7 +66,10 @@
     $("who").hidden = true;
     $("logout").hidden = true;
     groups = [];
+    players = [];
     $("groups").replaceChildren();
+    $("playersBackfillStatus").textContent = "";
+    $("playersRows").replaceChildren(el("tr", {}, el("td", { colSpan: 8, className: "muted", textContent: "Sign in to load players." })));
   }
 
   function showApp() {
@@ -288,6 +292,80 @@
     renderGroups();
   }
 
+  function renderPlayers() {
+    const body = $("playersRows");
+    if (!players.length) {
+      body.replaceChildren(el("tr", {}, el("td", { colSpan: 8, className: "muted", textContent: "No players yet." })));
+      return;
+    }
+    body.replaceChildren(...players.map((player) => {
+      const firstInput = el("input", { type: "text", value: player.firstName || "", maxLength: 40 });
+      const lastInput = el("input", { type: "text", value: player.lastName || "", maxLength: 40 });
+      const emailInput = el("input", { type: "email", value: player.email || "", maxLength: 120 });
+      const anonymousToggle = el("input", { type: "checkbox", checked: !!player.isAnonymous });
+      const forcePublicToggle = el("input", { type: "checkbox", checked: !!player.adminForcePublicIdentity });
+      const saveBtn = el("button", { type: "button", className: "small", textContent: "Save" });
+      const rank = player.rank ? `#${player.rank}` : "–";
+      const group = player.groupName || player.groupSlug || "No group";
+
+      saveBtn.addEventListener("click", () => run(async () => {
+        const payload = {
+          playerId: player.id,
+          firstName: firstInput.value.trim(),
+          lastName: lastInput.value.trim(),
+          email: emailInput.value.trim().toLowerCase(),
+          isAnonymous: anonymousToggle.checked,
+          adminForcePublicIdentity: forcePublicToggle.checked,
+        };
+        const data = await call("/player", { method: "PATCH", body: payload });
+        const updated = data.player || {};
+        player.firstName = updated.firstName || payload.firstName;
+        player.lastName = updated.lastName || payload.lastName;
+        player.email = updated.email || payload.email;
+        player.isAnonymous = !!updated.isAnonymous;
+        player.adminForcePublicIdentity = !!updated.adminForcePublicIdentity;
+        player.publicName = updated.publicName || player.publicName;
+        toast("Player profile updated");
+        await loadPlayers();
+      }, saveBtn));
+
+      return el("tr", {},
+        el("td", { className: "rank", textContent: rank }),
+        el("td", {},
+          el("div", { className: "stack" },
+            el("div", {}, firstInput),
+            el("div", {}, lastInput),
+            el("div", {}, emailInput),
+          )),
+        el("td", { textContent: player.publicName || "–" }),
+        el("td", { className: "rank", textContent: String(player.score || 0) }),
+        el("td", { className: "rank", textContent: String(player.games || 0) }),
+        el("td", {},
+          el("div", { className: "stack" },
+            el("label", {}, anonymousToggle, " Anonymous on public board"),
+            el("label", {}, forcePublicToggle, " Force public full name"),
+          )),
+        el("td", { textContent: group }),
+        el("td", {}, saveBtn),
+      );
+    }));
+  }
+
+  async function loadPlayers() {
+    const data = await call("/players");
+    players = data.players || [];
+    renderPlayers();
+  }
+
+  async function runPlayersBackfill() {
+    const status = $("playersBackfillStatus");
+    status.textContent = "Running backfill…";
+    const data = await call("/players/backfill", { method: "POST" });
+    status.textContent = `Done. Updated ${data.updated || 0} player rows.`;
+    await loadPlayers();
+    toast("Legacy player data backfilled");
+  }
+
   // ---- auth --------------------------------------------------------------
 
   async function loadSession() {
@@ -298,6 +376,7 @@
     }
     showApp();
     await loadGroups();
+    await loadPlayers();
     return true;
   }
 
@@ -376,6 +455,7 @@
   $("deleteCancel").addEventListener("click", () => $("deleteDialog").close());
   $("testCreds").addEventListener("click", () => run(testAccess, $("testCreds")));
   $("debugAuth").addEventListener("click", () => run(checkAuthConfig, $("debugAuth")));
+  $("playersBackfill").addEventListener("click", () => run(runPlayersBackfill, $("playersBackfill")));
 
   (async () => {
     try {
