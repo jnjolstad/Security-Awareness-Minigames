@@ -24,6 +24,12 @@ export function getMinigamesConfig(env = {}) {
     MIN_ADMIN_LOGIN_TTL_MS,
     MAX_ADMIN_LOGIN_TTL_MS,
   );
+  const playerLoginTtlMs = clamp(
+    parsePositiveInt(env.SAM_MINIGAMES_PLAYER_LOGIN_TTL_MS, DEFAULT_ADMIN_LOGIN_TTL_MS),
+    MIN_ADMIN_LOGIN_TTL_MS,
+    MAX_ADMIN_LOGIN_TTL_MS,
+  );
+  const playerLoginMaxPerHour = clamp(parsePositiveInt(env.SAM_MINIGAMES_PLAYER_LOGIN_MAX_PER_HOUR, 3), 1, 20);
 
   return {
     adminEmailsRaw,
@@ -33,5 +39,7 @@ export function getMinigamesConfig(env = {}) {
     resendApiKey,
     emailFrom,
     adminLoginTtlMs,
+    playerLoginTtlMs,
+    playerLoginMaxPerHour,
   };
 }

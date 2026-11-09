@@ -496,8 +496,39 @@
       }
       const solo = el("button", { type: "button", className: "linkish", id: "unranked" }, "Play without the leaderboard");
       solo.addEventListener("click", () => begin(null));
-      who.append(solo);
+      who.append(solo, signInBlock());
     }
+  }
+
+  // Players who registered with an email can get a one-time link that signs
+  // them back in on this browser or any other.
+  function signInBlock() {
+    const wrap = el("div", { className: "signin" });
+    const toggle = el("button", { type: "button", className: "linkish", id: "signinToggle" }, "Already registered? Sign in");
+    const form = el("div", { hidden: true });
+    const email = el("input", { id: "signinEmail", type: "email", maxLength: 120, autocomplete: "email", placeholder: "Email you registered with" });
+    const send = el("button", { type: "button", className: "quiet small", id: "signinSend" }, "Email me a sign-in link");
+    const note = el("small", { className: "muted", id: "signinMsg" });
+    toggle.addEventListener("click", () => { form.hidden = !form.hidden; });
+    send.addEventListener("click", async () => {
+      const value = (email.value || "").trim();
+      if (!value) {
+        note.textContent = "Enter the email you registered with.";
+        return;
+      }
+      send.disabled = true;
+      try {
+        await Board.requestLogin(value);
+        note.textContent = "If that email is registered, a sign-in link is on its way. Open it on this device, then come back to this game.";
+      } catch (err) {
+        note.textContent = err.message;
+      } finally {
+        send.disabled = false;
+      }
+    });
+    form.append(email, send, note);
+    wrap.append(toggle, form);
+    return wrap;
   }
 
   function begin(runId) {

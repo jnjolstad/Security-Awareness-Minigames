@@ -65,6 +65,10 @@ const SCHEMA = [
      id TEXT PRIMARY KEY, email TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE,
      created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER)`,
   `CREATE INDEX IF NOT EXISTS sam_mg_admin_login_tokens_exp ON sam_mg_admin_login_tokens (expires_at, used_at)`,
+  `CREATE TABLE IF NOT EXISTS sam_mg_player_login_tokens (
+     id TEXT PRIMARY KEY, player_id TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE,
+     created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER)`,
+  `CREATE INDEX IF NOT EXISTS sam_mg_player_login_tokens_player ON sam_mg_player_login_tokens (player_id, created_at)`,
 ];
 const GAME_IDS = Object.keys(GAMES);
 
@@ -304,13 +308,13 @@ async function canEmailAdmin(email, env, db) {
   return !!(row && row.ok);
 }
 
-async function sendAdminMagicLink(email, token, env, origin) {
+async function sendLoginEmail({ to, subject, intro, link, ttlMs }, env) {
   const config = getMinigamesConfig(env);
   const resendApiKey = config.resendApiKey;
   const fromEmail = config.emailFrom;
-  const ttlMinutes = Math.max(1, Math.round(config.adminLoginTtlMs / 60000));
+  const ttlMinutes = Math.max(1, Math.round(ttlMs / 60000));
+  const expiry = `The link expires in ${ttlMinutes} minute${ttlMinutes === 1 ? "" : "s"} and works once.`;
   if (!resendApiKey || !fromEmail) return fail(503, "Email login is not configured on the server.");
-  const link = `${origin}/admin/?login_token=${encodeURIComponent(token)}`;
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -319,10 +323,10 @@ async function sendAdminMagicLink(email, token, env, origin) {
     },
     body: JSON.stringify({
       from: fromEmail,
-      to: [email],
-      subject: "Your Security Awareness Month admin login link",
-      html: `<p>Use this one-time login link for Security Awareness Month admin access:</p><p><a href="${link}">${link}</a></p><p>The link expires in ${ttlMinutes} minute${ttlMinutes === 1 ? "" : "s"}.</p>`,
-      text: `Use this one-time login link for Security Awareness Month admin access: ${link}\n\nThe link expires in ${ttlMinutes} minute${ttlMinutes === 1 ? "" : "s"}.`,
+      to: [to],
+      subject,
+      html: `<p>${intro}</p><p><a href="${link}">${link}</a></p><p>${expiry}</p>`,
+      text: `${intro} ${link}\n\n${expiry}`,
     }),
   });
   if (!response.ok) {
@@ -331,6 +335,16 @@ async function sendAdminMagicLink(email, token, env, origin) {
     return fail(502, "Unable to send login email right now.");
   }
   return null;
+}
+
+async function sendAdminMagicLink(email, token, env, origin) {
+  return await sendLoginEmail({
+    to: email,
+    subject: "Your Security Awareness Month admin login link",
+    intro: "Use this one-time login link for Security Awareness Month admin access:",
+    link: `${origin}/admin/?login_token=${encodeURIComponent(token)}`,
+    ttlMs: getMinigamesConfig(env).adminLoginTtlMs,
+  }, env);
 }
 
 async function issueAdminMagicLink(email, env, db, origin) {
@@ -426,7 +440,7 @@ async function createPlayer(request, db) {
   } catch (err) {
     if (String(err && err.message).includes("UNIQUE")) {
       return fail(409, requireFullProfile
-        ? "That email is already registered. Use another email."
+        ? "That email is already registered. Use \"Already registered? Sign in\" to get a sign-in link."
         : "That nickname is taken. Try another.");
     }
     throw err;
@@ -449,6 +463,74 @@ async function createPlayer(request, db) {
     publicName: publicNameFromRow(viewRow),
   };
   return json(player);
+}
+
+// Players with an email on file can get a one-time link that issues a fresh
+// key, so they can come back from another browser or device. The response is
+// the same whether or not the email is known, so it can't be used to probe
+// who has registered.
+async function requestPlayerLogin(request, env, db) {
+  const body = await readJson(request);
+  const email = cleanEmail(body && body.email);
+  if (email.error) return fail(400, email.error);
+  const config = getMinigamesConfig(env);
+  if (!config.resendApiKey || !config.emailFrom) return fail(503, "Email sign-in is not configured on the server.");
+  const row = await db.prepare(`
+    SELECT p.id, g.slug AS group_slug
+    FROM sam_mg_players p LEFT JOIN sam_mg_groups g ON g.id = p.group_id
+    WHERE p.email_key = ?`).bind(email.key).first();
+  if (!row) return json({ ok: true });
+  const now = Date.now();
+  const recent = await db.prepare("SELECT COUNT(*) AS n FROM sam_mg_player_login_tokens WHERE player_id = ? AND created_at > ?")
+    .bind(row.id, now - 3600_000).first();
+  if (recent && recent.n >= config.playerLoginMaxPerHour) return json({ ok: true });
+  const token = randomHex(24);
+  await db.batch([
+    db.prepare("DELETE FROM sam_mg_player_login_tokens WHERE expires_at < ? OR used_at IS NOT NULL").bind(now),
+    db.prepare("INSERT INTO sam_mg_player_login_tokens (id, player_id, token_hash, created_at, expires_at, used_at) VALUES (?, ?, ?, ?, ?, NULL)")
+      .bind(randomHex(12), row.id, await sha256("sam-player-login:" + token), now, now + config.playerLoginTtlMs),
+  ]);
+  const query = `player_login=${encodeURIComponent(token)}${row.group_slug ? `&group=${encodeURIComponent(row.group_slug)}` : ""}`;
+  const sendError = await sendLoginEmail({
+    to: email.email,
+    subject: "Your Security Awareness Month sign-in link",
+    intro: "Use this one-time link to sign back in to the Security Awareness Month mini-games:",
+    link: `${new URL(request.url).origin}/minigames/?${query}`,
+    ttlMs: config.playerLoginTtlMs,
+  }, env);
+  if (sendError) console.error("player login email failed");
+  return json({ ok: true });
+}
+
+async function verifyPlayerLogin(request, db) {
+  const body = await readJson(request);
+  const token = String(body && body.token || "").trim();
+  if (!/^[0-9a-f]{48}$/.test(token)) return fail(400, "Invalid sign-in link.");
+  const now = Date.now();
+  const row = await db.prepare("SELECT id, player_id FROM sam_mg_player_login_tokens WHERE token_hash = ? AND used_at IS NULL AND expires_at >= ?")
+    .bind(await sha256("sam-player-login:" + token), now).first();
+  if (!row) return fail(400, "This sign-in link is invalid or has expired. Request a new one.");
+  const used = await db.prepare("UPDATE sam_mg_player_login_tokens SET used_at = ? WHERE id = ? AND used_at IS NULL").bind(now, row.id).run();
+  if (!used.meta || used.meta.changes !== 1) return fail(409, "This sign-in link was already used. Request a new one.");
+  // Only the key hash is stored, so signing in issues a new key; other devices must sign in again.
+  const key = randomHex(32);
+  await db.prepare("UPDATE sam_mg_players SET key_hash = ? WHERE id = ?").bind(await sha256(key), row.player_id).run();
+  const player = await db.prepare(`
+    SELECT p.id, p.name, p.first_name, p.last_name, p.email, p.is_anonymous, p.admin_force_public,
+      COALESCE(g.force_full_names, 0) AS group_force_full_names
+    FROM sam_mg_players p LEFT JOIN sam_mg_groups g ON g.id = p.group_id
+    WHERE p.id = ?`).bind(row.player_id).first();
+  if (!player) return fail(404, "Profile not found.");
+  return json({
+    id: player.id,
+    key,
+    name: player.name,
+    firstName: player.first_name || undefined,
+    lastName: player.last_name || undefined,
+    email: player.email || undefined,
+    isAnonymous: !!player.is_anonymous,
+    publicName: publicNameFromRow(player),
+  });
 }
 
 async function startRun(request, db) {
@@ -1181,6 +1263,8 @@ export async function onRequest(context) {
     if (route === "/group" && method === "GET") return await getGroupConfig(url, db);
     if (route === "/group/join" && method === "POST") return await joinGroup(request, db);
     if (route === "/player" && method === "POST") return await createPlayer(request, db);
+    if (route === "/player/login-request" && method === "POST") return await requestPlayerLogin(request, env, db);
+    if (route === "/player/login-verify" && method === "POST") return await verifyPlayerLogin(request, db);
     if (route === "/player" && method === "PATCH") return await updatePlayerProfile(request, env, db);
     if (route === "/player" && method === "DELETE") return await removePlayer(request, env, url, db);
     if (route === "/players" && method === "GET") return await listPlayers(request, env, db);

@@ -33,6 +33,8 @@ Configure Pages Function environment variables:
 - `RESEND_API_KEY` (Resend API key used to send one-time admin login links)
 - `SAM_MINIGAMES_EMAIL_FROM` (verified sender, e.g. `Security Awareness <security@njolstad.no>`)
 - `SAM_MINIGAMES_ADMIN_LOGIN_TTL_MS` (optional; magic-link validity in ms, clamped to 1–60 minutes; default 900000)
+- `SAM_MINIGAMES_PLAYER_LOGIN_TTL_MS` (optional; player sign-in link validity, same limits and default)
+- `SAM_MINIGAMES_PLAYER_LOGIN_MAX_PER_HOUR` (optional; sign-in emails per player per hour, 1–20; default 3)
 
 The admin page (`/admin`) now uses **email-only magic-link login**:
 
@@ -42,6 +44,20 @@ The admin page (`/admin`) now uses **email-only magic-link login**:
 
 Global admins come from `SAM_MINIGAMES_ADMIN_EMAILS`; group admins added in the UI can also log in by email-only and are scoped to their group permissions.
 When a global admin adds a group admin, the API now sends that group admin the same one-time login email automatically.
+
+## Player sign-in by email
+
+Players who registered with an email (groups that require full names, or the full-profile form) can sign back in from any browser or device:
+
+1. On a game's start screen they choose **Already registered? Sign in** and enter their email.
+2. If that email is registered, a one-time link to `/minigames/?player_login=...` is sent (same Resend setup as admin login).
+3. Opening the link signs them in on that browser. Their scores and profile are unchanged.
+
+Notes:
+- The response is identical whether or not the email is registered, so it can't be used to check who has signed up.
+- Only a key hash is stored, so signing in issues a **new key**. Any browser that was signed in before has to sign in again.
+- Nickname-only players have no email, so they can't use this.
+- The new `sam_mg_player_login_tokens` table is created automatically on first request, and is also in `migrations/d1/minigames-schema.sql`.
 
 For troubleshooting, use:
 

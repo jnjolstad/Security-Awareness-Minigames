@@ -46,6 +46,21 @@ window.Board = (() => {
     return data;
   }
 
+  const requestLogin = (email) => call("/player/login-request", { method: "POST", body: { email } });
+
+  // Handles the ?player_login=<token> link from the sign-in email. The token is
+  // removed from the address bar first so it isn't kept in history or shared.
+  async function consumeLoginLink() {
+    const url = new URL(location.href);
+    const token = url.searchParams.get("player_login");
+    if (!token) return null;
+    url.searchParams.delete("player_login");
+    history.replaceState({}, "", url.pathname + url.search + url.hash);
+    const data = await call("/player/login-verify", { method: "POST", body: { token } });
+    localStorage.setItem(PLAYER_KEY, JSON.stringify(data));
+    return data;
+  }
+
   const start = (game) => call("/start", { method: "POST", body: { game, group: group() || undefined } });
   const finish = (runId, log) => call("/finish", { method: "POST", body: { runId, log } });
   const get = (game) => {
@@ -140,5 +155,5 @@ window.Board = (() => {
     return wrap;
   }
 
-  return { player, forget, register, start, finish, get, joinGroup, group, table, seconds, call, order };
+  return { player, forget, register, requestLogin, consumeLoginLink, start, finish, get, joinGroup, group, table, seconds, call, order };
 })();

@@ -36,6 +36,17 @@
   }
 
   (async () => {
+    let signInNote = "";
+    try {
+      const signedIn = await Board.consumeLoginLink();
+      if (signedIn) {
+        const who = signedIn.publicName || signedIn.name;
+        signInNote = ` Signed in as ${who}${who.endsWith(".") ? "" : "."}`;
+      }
+    } catch (err) {
+      signInNote = ` ${err.message}`;
+    }
+
     const groupSlug = Board.group();
     const query = groupSlug ? `?group=${encodeURIComponent(groupSlug)}` : "";
     for (const node of document.querySelectorAll('.brand, .game-name, .champ-head a')) node.href += query;
@@ -58,6 +69,9 @@
       const games = MINIGAMES.games.filter((g) => g.group === group && (!allowed || g.pending || allowed.has(g.id)));
       document.getElementById(group).append(...games.map((g) => card(g, query)));
     }
+
+    const introEl = document.querySelector(".hub-head .intro");
+    if (signInNote && introEl) introEl.textContent = `${introEl.textContent}${signInNote}`;
 
     Board.get("overall").then((data) => {
       const box = document.getElementById("champ");

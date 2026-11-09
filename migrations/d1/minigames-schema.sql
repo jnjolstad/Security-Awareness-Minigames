@@ -70,3 +70,25 @@ CREATE TABLE IF NOT EXISTS sam_mg_group_games (
 );
 
 CREATE INDEX IF NOT EXISTS sam_mg_group_games_group ON sam_mg_group_games (group_id, enabled);
+
+CREATE TABLE IF NOT EXISTS sam_mg_admin_login_tokens (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  used_at INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS sam_mg_admin_login_tokens_exp ON sam_mg_admin_login_tokens (expires_at, used_at);
+
+CREATE TABLE IF NOT EXISTS sam_mg_player_login_tokens (
+  id TEXT PRIMARY KEY,
+  player_id TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  used_at INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS sam_mg_player_login_tokens_player ON sam_mg_player_login_tokens (player_id, created_at);
