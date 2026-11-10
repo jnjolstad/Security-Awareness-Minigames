@@ -1,5 +1,4 @@
 "use strict";
-// build-marker: admin-panel-v5-2026-11-09
 
 (() => {
   const API = "/security-awareness-month/minigames-api";
